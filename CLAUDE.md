@@ -24,6 +24,8 @@ This repository is intended to be worked through a Ralph Loop style workflow.
 - After completing a task, create one commit containing the work done for that task.
 - Prefer one task per commit. Do not batch unrelated task work into the same commit.
 - Stop after each completed task so the next iteration starts with fresh context.
+- You have permisson to edit any file in the repository, but do not change `docs/DESIGN_SPEC.md` or `TASKS.md` without a clear reason related to the current task.
+- You do not have permission to change any file outside of the current project. 
 
 ## Project status
 

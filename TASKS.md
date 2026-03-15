@@ -62,7 +62,7 @@ inputs:
 
 * id: T-002
   title: Prepare the single-container Python and Docker environment
-  status: false
+  status: true
   type: infra
   depends_on: [T-001]
   read_first:

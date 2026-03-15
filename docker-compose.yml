@@ -7,5 +7,6 @@ services:
       - ./inputs:/app/inputs
       - ./output:/app/output
       - ./assets:/app/assets
+      - ./config:/app/config
       - ./temp:/app/temp
     working_dir: /app
