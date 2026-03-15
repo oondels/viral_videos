@@ -293,7 +293,7 @@ inputs:
 
 * id: T-012
   title: Generate subtitles directly from the timeline
-  status: false
+  status: true
   type: code
   depends_on: [T-011]
   read_first:

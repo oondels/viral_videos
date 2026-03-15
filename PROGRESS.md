@@ -118,3 +118,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_timeline_builder.py -v` → 14 passed; `pytest tests/unit/ -q` → 109 passed; primeiro item em 0.0; sem gaps; last end_sec dentro de 0.05s do master; clip_file=null.
 - Docs updated: none.
 - Notes for next task: T-012 (subtitles, depends T-011 ✓) e T-013 (assets, depends T-001 ✓) estão ambos desbloqueados. T-014 depende de T-010 ✓ e T-013. T-015 depende de T-011 ✓ e T-014. TimelineError é a exceção canônica do módulo. concat_list.txt fica em audio/master/ como artefato de debug.
+
+## 2026-03-15 - T-012 - Generate subtitles directly from the timeline
+
+- Outcome: generate_subtitles() implementado; subtitles.srt gerado com um cue por item de timeline; texto preservado exatamente; 11 unit tests passando; 120 testes totais verdes.
+- Files changed: app/modules/subtitles.py (criado), tests/unit/test_subtitles.py (criado), TASKS.md (T-012 status → true).
+- Validations: `pytest tests/unit/test_subtitles.py -v` → 11 passed; primeiro cue em 00:00:00,000; numeração contígua desde 1; timings gap-free; texto idêntico ao da timeline; arquivo válido SRT.
+- Docs updated: none.
+- Notes for next task: T-013 (assets, depends T-001 ✓) está desbloqueado. T-014 depende de T-010 ✓ e T-013. T-015 depende de T-011 ✓ e T-014. SubtitleError é a exceção canônica. _sec_to_srt_timestamp() converte segundos para HH:MM:SS,mmm.
