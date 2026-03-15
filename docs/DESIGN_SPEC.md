@@ -1,248 +1,240 @@
-# Design Specs
+# DESIGN_SPEC
 
-## 1. Visão do Produto
+## 1. Papel deste documento
 
-O projeto tem como objetivo gerar automaticamente vídeos curtos no estilo de explicação humorística entre dois personagens, com foco em plataformas de vídeo vertical como TikTok, Instagram Reels, YouTube Shorts e similares.
+Este e o documento raiz de fonte de verdade do projeto.
 
-A proposta central é transformar um tema textual em um vídeo finalizado, sem necessidade de edição manual. O sistema deve ser capaz de:
+Toda iteracao de um code agent em Ralph Loop deve:
 
-* receber um tema ou prompt de entrada;
-* gerar um roteiro de diálogo curto entre dois personagens;
-* converter cada fala em áudio usando TTS;
-* animar imagens estáticas dos personagens com sincronização labial;
-* compor esse conteúdo sobre um vídeo de fundo satisfatório;
-* gerar legendas automaticamente;
-* exportar um vídeo final em formato vertical, pronto para publicação nas redes sociais.
+1. abrir `TASKS.md`;
+2. selecionar a primeira task com `status: false` e dependencias satisfeitas;
+3. ler este arquivo por inteiro;
+4. usar o indice de lookup abaixo para abrir somente as specs necessarias em `docs/specs/`;
+5. executar uma unica task;
+6. validar, atualizar status e parar.
 
----
+Se houver conflito entre este arquivo, `TASKS.md` e qualquer arquivo em `docs/specs/`, o agente deve parar e corrigir a documentacao antes de continuar implementacao.
 
-## 2. Objetivo do Sistema
+## 2. Verdade geral do produto
 
-Construir um pipeline automatizado de geração de vídeos virais curtos, orientado por código, com foco em:
+O projeto gera automaticamente videos curtos verticais no estilo de dialogo humoristico entre dois personagens.
 
-* escalabilidade;
-* baixo esforço operacional;
-* repetibilidade visual;
-* rapidez para testar temas e formatos;
-* compatibilidade com automação em lote.
+Entrada:
 
-O sistema não deve depender de edição manual em CapCut, Premiere ou qualquer editor tradicional.
+- um `job` JSON com `topic`, `duration_target_sec`, `background_style`, `characters` e `output_preset`;
+- execucao via CLI;
+- suporte a execucao batch na fase final do MVP.
 
----
+Saida:
+
+- um arquivo final `MP4` vertical `9:16`;
+- artefatos intermediarios auditaveis por job;
+- logs estruturados por etapa.
+
+Objetivo central:
+
+`um unico comando -> um unico input JSON -> um unico video MP4 vertical completo`
 
 ## 3. Escopo do MVP
 
-O MVP deve atender às seguintes capacidades mínimas:
+O MVP inclui:
 
-### Entrada
+- validacao de input de job;
+- roteiro estruturado entre dois personagens;
+- TTS por fala;
+- timeline consolidada;
+- lip-sync por fala;
+- fundo satisfatorio unico por video;
+- legendas geradas a partir da timeline;
+- composicao final com FFmpeg;
+- execucao end-to-end por CLI;
+- batch sequencial basico;
+- logs e metadados minimos.
 
-* tema do vídeo;
-* duração alvo;
-* estilo de fundo (ou seleção automática);
-* seleção de dupla de personagens.
+O MVP nao inclui:
 
-### Saída
+- painel web;
+- publicacao automatica em redes sociais;
+- fila distribuida;
+- multiplos personagens ativos por cena;
+- multiplas expressoes faciais;
+- geracao procedural de fundo por IA;
+- edicao manual em ferramentas externas.
 
-* vídeo MP4 final em 9:16;
-* áudio sincronizado;
-* legendas embutidas;
-* composição visual consistente;
-* estrutura pronta para geração em lote.
+## 4. Requisitos funcionais canonicos
 
-### Incluído no MVP
+- RF-01: gerar roteiro curto estruturado em dialogo entre dois personagens.
+- RF-02: separar o roteiro por falas com ordem, speaker e texto limpo.
+- RF-03: gerar um arquivo de audio por fala.
+- RF-04: consolidar uma timeline com `start_sec`, `end_sec`, `duration_sec`, speaker, texto e caminhos de artefatos.
+- RF-05: gerar um talking head por fala.
+- RF-06: selecionar e preparar um fundo compativel com a duracao final.
+- RF-07: compor fundo, personagens, hook, audio master e legendas em um video final.
+- RF-08: gerar legendas com timestamps.
+- RF-09: exportar um MP4 vertical final pronto para publicacao.
+- RF-10: processar multiplos jobs em modo batch sequencial.
 
-* 2 personagens fixos;
-* 1 imagem-base por personagem;
-* roteiro curto estruturado;
-* TTS por fala;
-* lip-sync por fala;
-* fundo satisfatório único por vídeo;
-* export automatizado.
+## 5. Requisitos nao funcionais canonicos
 
-### Fora do MVP
+- RNF-01: automacao total, sem edicao manual.
+- RNF-02: reproducibilidade por contratos e caminhos previsiveis.
+- RNF-03: modularidade por adapters e contratos de arquivo.
+- RNF-04: observabilidade com logs por etapa e metadados.
+- RNF-05: extensibilidade para trocar providers e adicionar personagens/fundos.
+- RNF-06: eficiencia operacional com stack simples e validacoes focadas.
 
-* painel web completo;
-* publicação automática em redes sociais;
-* múltiplas expressões faciais por personagem;
-* variações avançadas de câmera;
-* geração procedural do fundo por IA;
-* múltiplos personagens por cena simultânea com inteligência de blocking.
+## 6. Invariantes arquiteturais
 
----
+- O projeto roda em um unico container Docker no MVP.
+- A linguagem principal e Python.
+- O pipeline e orientado a arquivos, nao a banco de dados.
+- O sistema e executado primeiro via CLI.
+- Toda integracao externa deve ficar atras de interface ou adapter.
+- Cada etapa deve ler e escrever artefatos previsiveis em disco.
+- Artefatos intermediarios fazem parte do produto e nao devem ser descartados silenciosamente.
+- `assets/` contem apenas recursos fixos.
+- `output/` contem apenas artefatos gerados.
+- `temp/` contem apenas cache e intermediarios descartaveis.
+- O pipeline de job unico e fail-fast no MVP.
+- Batch continua para o proximo item mesmo se um item falhar.
 
-## 4. Público-Alvo
+## 7. Contratos e caminhos canonicos
 
-O projeto é voltado para:
+### 7.1 Input de job
 
-* operação de conteúdo automatizado para redes sociais;
-* testes de formatos virais;
-* produção em escala de vídeos curtos;
-* criadores que desejam um pipeline programável e reproduzível.
-
----
-
-## 5. Requisitos Funcionais
-
-### RF-01 — Geração de roteiro
-
-O sistema deve gerar um roteiro curto em formato estruturado de diálogo entre dois personagens.
-
-### RF-02 — Separação por falas
-
-Cada linha do roteiro deve ser separada por personagem, com ordem definida e texto limpo.
-
-### RF-03 — Geração de áudio
-
-Cada fala deve ser convertida em um arquivo de áudio independente.
-
-### RF-04 — Linha do tempo
-
-O sistema deve calcular a linha do tempo consolidada com início, fim, personagem e texto de cada fala.
-
-### RF-05 — Animação facial
-
-O sistema deve gerar clipes curtos de personagem falando a partir de imagem estática + áudio.
-
-### RF-06 — Seleção de fundo
-
-O sistema deve selecionar e preparar um vídeo de fundo satisfatório compatível com a duração final.
-
-### RF-07 — Composição visual
-
-O sistema deve compor automaticamente fundo, personagem principal, personagem secundário e demais elementos visuais.
-
-### RF-08 — Legendas
-
-O sistema deve gerar legendas automaticamente com timestamps.
-
-### RF-09 — Render final
-
-O sistema deve exportar um arquivo MP4 vertical com todos os elementos finalizados.
-
-### RF-10 — Execução em lote
-
-O sistema deve aceitar múltiplos tópicos para geração sequencial ou por fila.
-
----
-
-## 6. Requisitos Não Funcionais
-
-### RNF-01 — Automação total
-
-O pipeline deve funcionar sem intervenção manual na edição.
-
-### RNF-02 — Reprodutibilidade
-
-A execução deve ser previsível, com estrutura de entrada e saída clara.
-
-### RNF-03 — Modularidade
-
-Os componentes devem ser desacoplados para facilitar troca de ferramentas.
-
-### RNF-04 — Observabilidade
-
-O pipeline deve registrar logs por etapa e falhas intermediárias.
-
-### RNF-05 — Extensibilidade
-
-O sistema deve permitir futura adição de novos personagens, novos fundos e novos modelos.
-
-### RNF-06 — Eficiência operacional
-
-O sistema deve priorizar ferramentas e fluxos que reduzam custo por vídeo.
-
----
-
-## 7. Formato de Entrada
-
-Exemplo de entrada mínima:
+Exemplo canonico:
 
 ```json
 {
-  "topic": "explique inflação de forma engraçada",
+  "topic": "explique inflacao de forma engracada",
   "duration_target_sec": 30,
   "background_style": "minecraft_parkour",
-  "characters": ["char_a", "char_b"]
+  "characters": ["char_a", "char_b"],
+  "output_preset": "shorts_default"
 }
 ```
 
----
+Regras gerais:
 
-## 8. Formato de Saída Esperado
+- `topic` obrigatorio e nao vazio;
+- `duration_target_sec` usa o default de runtime, `30` no MVP; quando informado, deve ficar entre `20` e `45`;
+- `characters` default `["char_a", "char_b"]`; apos materializacao dos defaults, deve conter exatamente `2` personagens unicos;
+- `background_style` default `auto`;
+- `output_preset` default `shorts_default`;
+- `job_id` e sempre gerado pelo sistema.
 
-### Saída principal
+### 7.2 Workspace por job
 
-* `output/final/<video_id>.mp4`
+Todo job deve persistir em:
 
-### Saídas intermediárias
+- `output/jobs/<job_id>/script/`
+- `output/jobs/<job_id>/audio/segments/`
+- `output/jobs/<job_id>/audio/master/`
+- `output/jobs/<job_id>/clips/`
+- `output/jobs/<job_id>/background/`
+- `output/jobs/<job_id>/subtitles/`
+- `output/jobs/<job_id>/render/`
+- `output/jobs/<job_id>/logs/`
 
-* roteiro em JSON;
-* falas separadas por personagem;
-* áudios individuais;
-* áudio master concatenado;
-* timeline consolidada;
-* clipes de talking head;
-* legendas `.srt`;
-* metadados da renderização.
+### 7.3 Artefatos canonicos
 
----
+- `script/script.json`
+- `script/dialogue.json`
+- `script/timeline.json`
+- `audio/segments/001_char_a.wav`
+- `audio/segments/002_char_b.wav`
+- `audio/manifest.json`
+- `audio/master/master_audio.wav`
+- `clips/001_char_a_talk.mp4`
+- `clips/002_char_b_talk.mp4`
+- `background/prepared_background.mp4`
+- `subtitles/subtitles.srt`
+- `render/final.mp4`
+- `render/render_metadata.json`
+- `logs/job.log`
 
-## 9. Regras de Produto
+### 7.4 Pipeline canonico
 
-### Duração
+Ordem obrigatoria de execucao:
 
-* vídeos preferencialmente entre 20 e 45 segundos;
-* cada fala deve ser curta;
-* evitar monólogos longos.
+1. `validate_input`
+2. `init_job_workspace`
+3. `write_script`
+4. `generate_tts`
+5. `build_timeline`
+6. `generate_lipsync`
+7. `prepare_background`
+8. `generate_subtitles`
+9. `compose_video`
+10. `finalize_job`
 
-### Legibilidade
+## 8. Lookup index de specs
 
-* legenda grande;
-* contraste suficiente com o fundo;
-* layout vertical centrado em retenção.
+Use esta tabela para abrir apenas a documentacao necessaria para a task atual.
+
+| Area | Keywords de busca | Abrir quando a task envolver | Arquivo |
+|---|---|---|---|
+| Spec overview | specs, index, lookup, source of truth | descobrir onde esta a spec detalhada de uma funcionalidade | `docs/specs/README.md` |
+| Job input | input, job, payload, schema, validation, defaults, job_id | validar entrada, defaults, contrato do job | `docs/specs/SYSTEM_JOB_INPUT_SPEC.md` |
+| Script writer | script, dialogue, hook, llm, prompt, speakers | gerar roteiro, prompts, saida de dialogo | `docs/specs/MODULE_SCRIPT_WRITER_SPEC.md` |
+| TTS | tts, voice, speech, manifest, segment audio | gerar audio por fala, voice mapping | `docs/specs/MODULE_TTS_SPEC.md` |
+| Timeline | timeline, master audio, start_sec, end_sec, concatenation | consolidar duracoes, audio master e timeline | `docs/specs/MODULE_TIMELINE_BUILDER_SPEC.md` |
+| Lip-sync | lipsync, talking head, clip_file, character clip | gerar video por fala a partir de imagem + audio | `docs/specs/MODULE_LIPSYNC_SPEC.md` |
+| Background | background, satisfying video, crop, loop, 9:16 | selecionar e adaptar o fundo | `docs/specs/MODULE_BACKGROUND_SELECTOR_SPEC.md` |
+| Subtitles | subtitles, srt, captions, cue timing | gerar legendas a partir da timeline | `docs/specs/MODULE_SUBTITLES_SPEC.md` |
+| Compositor | compositor, render, final mp4, ffmpeg, layout, preset | compor video final e metadata de render | `docs/specs/MODULE_COMPOSITOR_SPEC.md` |
+| Assets | assets, characters, fonts, presets, metadata, backgrounds | localizar e validar recursos fixos | `docs/specs/SYSTEM_ASSET_MANAGEMENT_SPEC.md` |
+| Orchestration | pipeline, stage order, fail-fast, single job | encadear etapas end-to-end | `docs/specs/SYSTEM_PIPELINE_ORCHESTRATION_SPEC.md` |
+| Observability | logs, metadata, stage events, jsonl, monitoring | registrar eventos, logs e metadados | `docs/specs/SYSTEM_OBSERVABILITY_SPEC.md` |
+| Batch | batch, csv, multi-job, report | processar varios jobs sequencialmente | `docs/specs/SYSTEM_BATCH_PROCESSING_SPEC.md` |
+
+## 9. Regras de consulta para agents
+
+- Nao abra todos os arquivos em `docs/specs/` na mesma iteracao.
+- Sempre abra este arquivo primeiro.
+- Depois abra somente as specs relacionadas a task atual.
+- Se a task tocar duas capacidades, abra apenas as duas specs relevantes e nada alem disso.
+- Se faltar detalhe para implementar sem ambiguidade, atualize a spec primeiro.
+- Nao implemente comportamento que nao esteja em `TASKS.md` ou nas specs referenciadas.
+
+## 10. Regras de produto
+
+### Duracao
+
+- videos entre `20` e `45` segundos;
+- falas curtas;
+- evitar monologos longos.
 
 ### Ritmo
 
-* os primeiros 2 segundos devem ter hook claro;
-* a densidade verbal deve ser alta, mas compreensível;
-* o vídeo precisa parecer dinâmico mesmo com personagens estáticos animados.
+- hook claro nos primeiros `2` segundos;
+- densidade verbal alta, mas compreensivel;
+- dinamismo visual mesmo com personagens baseados em imagem estatica.
+
+### Legibilidade
+
+- legenda grande;
+- contraste suficiente;
+- area segura para subtitulos definida por preset.
 
 ### Fundo
 
-* deve ter movimento contínuo;
-* não pode competir excessivamente com a fala;
-* deve ser tratável via blur leve, escurecimento ou crop inteligente.
+- movimento continuo;
+- nao competir excessivamente com a fala;
+- tratavel por crop, escurecimento ou blur leve.
 
----
+## 11. Criterios de sucesso do MVP
 
-## 10. Restrições Técnicas
+O MVP estara pronto quando:
 
-* o projeto deve evitar dependência de edição manual;
-* o pipeline deve ser executável por script/CLI;
-* a composição final deve ser baseada em ferramentas automatizáveis;
-* deve existir separação clara entre assets, processamento e saída.
+- aceitar um input JSON unico validado;
+- gerar todos os artefatos intermediarios canonicos;
+- renderizar `output/jobs/<job_id>/render/final.mp4`;
+- operar sem edicao manual;
+- repetir o processo para multiplos temas com pouca mudanca de configuracao.
 
----
+## 12. Relacao com outros docs em /docs
 
-## 11. Diretrizes para o Code Agent
-
-O code agent deve interpretar este projeto como um sistema de pipeline multimodal, não como um app tradicional CRUD.
-
-Prioridades de implementação:
-
-1. padronizar contratos de entrada e saída;
-2. garantir execução end-to-end do MVP;
-3. produzir artefatos intermediários auditáveis;
-4. facilitar debug por etapa;
-5. manter o código modular para substituição futura de TTS, lip-sync e ASR.
-
----
-
-## 12. Critérios de Sucesso do MVP
-
-O MVP será considerado bem-sucedido quando conseguir:
-
-* gerar um vídeo vertical completo a partir de um único tópico;
-* produzir roteiro, áudio, lip-sync, fundo, legendas e render final automaticamente;
-* operar sem edição manual;
-* ser repetido para múltiplos tópicos com mínima alteração de configuração.
+- `docs/DESIGN_SPEC.md`: fonte de verdade raiz para escopo, invariantes e lookup.
+- `docs/specs/*.md`: fonte de verdade detalhada por funcionalidade.
+- `docs/PROJECT_PLAN.md`, `docs/PROJECT_ARCHITECTURE.md`, `docs/PROJECT_TOOLS.md`, `docs/PROJECT_WORKTREE.md`: contexto de apoio historico; use apenas se uma task ou uma spec exigir contexto adicional.

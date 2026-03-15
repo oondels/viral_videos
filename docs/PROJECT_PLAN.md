@@ -61,12 +61,53 @@ Se isso não estiver funcionando, qualquer expansão antes disso é distração 
 
 Criar a base estrutural do projeto.
 
+### Decisão de ambiente: Docker container único
+
+O projeto roda em um **único container Docker**. Não há orquestração multi-container no MVP.
+
+Justificativa: o pipeline é sequencial, orientado a arquivos e acionado via CLI. Não existem serviços independentes, servidor persistente, fila de mensagens ou processamento paralelo — portanto, múltiplos containers adicionariam complexidade sem benefício real. Multi-container é uma evolução pós-MVP, quando houver API web e fila de jobs.
+
+**Estrutura Docker:**
+
+```
+Dockerfile           # imagem base python:3.11-slim + FFmpeg + dependências
+docker-compose.yml   # facilita execução local com volumes e variáveis de ambiente
+.env.example         # template de todas as variáveis necessárias
+.dockerignore
+```
+
+**Volumes montados em runtime:**
+
+| Host | Container | Conteúdo |
+|---|---|---|
+| `./inputs/` | `/app/inputs` | Jobs de entrada |
+| `./output/` | `/app/output` | Vídeos e artefatos gerados |
+| `./assets/` | `/app/assets` | Personagens, fundos, fontes |
+| `./temp/` | `/app/temp` | Cache temporário |
+
+**Execução:**
+
+```bash
+# build
+docker build -t viral-videos .
+
+# rodar um job
+docker-compose run --rm app python -m app.main --input inputs/job_001.json
+
+# batch
+docker-compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
+```
+
+Credenciais (API keys) devem ser passadas via variáveis de ambiente (`.env`), nunca embutidas na imagem.
+
 ### Entregas
 
 * repositório inicial;
 * estrutura de pastas;
-* ambiente Python configurado;
-* dependências mínimas;
+* `Dockerfile` funcional (python:3.11-slim + FFmpeg);
+* `docker-compose.yml` com volumes mapeados;
+* `.env.example` com todas as variáveis necessárias;
+* `.dockerignore`;
 * configuração de logs;
 * arquivo de exemplo de input.
 
@@ -74,15 +115,15 @@ Criar a base estrutural do projeto.
 
 1. criar o repositório;
 2. definir a árvore inicial do projeto;
-3. configurar ambiente virtual;
-4. instalar dependências base;
+3. escrever o `Dockerfile` com dependências base;
+4. escrever o `docker-compose.yml`;
 5. adicionar `.env.example`;
 6. criar pasta de assets;
 7. criar pasta de outputs e temps.
 
 ### Critério de conclusão
 
-Projeto executa um comando mínimo sem erro e possui base pronta para crescer.
+Projeto executa `docker-compose run --rm app python -m app.main` sem erro e possui base pronta para crescer.
 
 ---
 
