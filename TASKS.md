@@ -363,7 +363,7 @@ inputs:
 
 * id: T-015
   title: Generate one talking-head clip per timeline item
-  status: false
+  status: true
   type: code
   depends_on: [T-011, T-014]
   read_first:

@@ -142,3 +142,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_lipsync_adapter.py -v` → 6 passed; interface não instanciável; subclasse concreta funciona; LipSyncError levantada corretamente.
 - Docs updated: none.
 - Notes for next task: T-015 depende de T-011 ✓ e T-014 ✓ — pode começar agora. LipSyncEngine.generate(image_path, audio_path, output_path) → Path é o contrato canônico. LipSyncError para falhas de engine. T-015 deve implementar generate_lipsync(ctx, engine) em app/modules/lipsync.py.
+
+## 2026-03-15 - T-015 - Generate one talking-head clip per timeline item
+
+- Outcome: generate_lipsync() implementado; um clip por item de timeline; timeline.json atualizado apenas em clip_file; 10 unit tests passando; 152 testes totais verdes.
+- Files changed: app/modules/lipsync.py (criado), tests/unit/test_lipsync_module.py (criado), TASKS.md (T-015 status → true).
+- Validations: `pytest tests/unit/test_lipsync_module.py -v` → 10 passed; `pytest tests/unit/ -q` → 152 passed; nomes de clip NNN_speaker_talk.mp4; apenas clip_file atualizado; duração dentro de 0.10s; erros claros para asset/engine ausentes.
+- Docs updated: none.
+- Notes for next task: T-016 (background selector, depends T-013 ✓) e T-017 (ffmpeg adapter, depends T-002 ✓) estão desbloqueados. generate_lipsync(ctx, engine) lê timeline.json, chama load_character(speaker), engine.generate(base_png, audio_file, clip_path), valida duração, escreve clip_file. BlackClipEngine (stub FFmpeg) em tests pode ser reutilizado em T-018.
