@@ -247,7 +247,7 @@ inputs:
 
 * id: T-010
   title: Implement per-line audio generation and manifest persistence
-  status: false
+  status: true
   type: code
   depends_on: [T-008, T-009]
   read_first:

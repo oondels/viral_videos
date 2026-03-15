@@ -102,3 +102,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_tts_adapter.py -v` → 13 passed; load_voice_mapping() e resolve_voice_id() funcionam; TTSProvider não instanciável diretamente; subclasse concreta funciona.
 - Docs updated: none.
 - Notes for next task: T-010 depende de T-008 ✓ e T-009 ✓ — pode começar agora. TTSProvider.synthesize(text, voice_id, output_path) é o contrato canônico. load_voice_mapping() carrega config/voices.json (runtime path relativo ao CWD). resolve_voice_id(character, mapping) levanta TTSError para speakers sem mapeamento. config/voices.json está commitado com voice_ids de placeholder para char_a e char_b.
+
+## 2026-03-15 - T-010 - Implement per-line audio generation and manifest persistence
+
+- Outcome: módulo generate_tts() implementado; 13 unit tests passando; 95 testes totais verdes.
+- Files changed: app/modules/tts.py (criado), app/utils/ffprobe_utils.py (criado), app/utils/audio_utils.py (criado), tests/unit/test_tts_module.py (criado), TASKS.md (T-010 status → true).
+- Validations: `pytest tests/unit/ -v` → 95 passed; segmentos gerados em audio/segments/NNN_speaker.wav; manifest.json com campos obrigatórios; duration_sec medida via ffprobe; voice mapping ausente falha antes de qualquer síntese; arquivo não escrito levanta TTSError.
+- Docs updated: none.
+- Notes for next task: T-011 depende de T-010 ✓ — pode começar. generate_tts(ctx, provider, voice_mapping) → lista de dicts do manifesto. audio_utils.write_silence_wav() pode ser reutilizado em testes futuros. ffprobe_utils.get_audio_duration() é o utilitário canônico para medir duração de áudio.
