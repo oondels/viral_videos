@@ -70,3 +70,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_job_context.py -v` → 22 passed; todos os subdirs canônicos criados; nenhum path fora de output/jobs/<job_id>; sem criação de assets/.
 - Docs updated: none.
 - Notes for next task: T-006 (fixtures) e T-007 (LLM adapter) são desbloqueados. T-006 depende do contrato de validação de T-004 — usar validate_job() para confirmar que os exemplos são válidos. T-007 cria o adapter LLM e prompts. T-008 depende de T-005 e T-007. JobContext é o objeto canônico de paths — todos os módulos devem recebê-lo por injeção.
+
+## 2026-03-15 - T-006 - Create canonical sample inputs and test fixtures
+
+- Outcome: exemplos canônicos de input e fixtures de teste criados; todos validados pelo schema.
+- Files changed: inputs/examples/job_001.json (output_preset adicionado), inputs/examples/job_002.json (criado, minimal), tests/fixtures/sample_inputs/valid_minimal.json (criado), tests/fixtures/sample_inputs/valid_full.json (criado), TASKS.md (T-006 status → true).
+- Validations: `validate_job()` executada em todos os 4 arquivos → todos passam com defaults corretos materializados.
+- Docs updated: none.
+- Notes for next task: T-007 (LLM adapter) e T-009 (TTS adapter) são os próximos desbloqueados. T-007 cria app/prompts/ + app/adapters/llm_adapter.py com interface ScriptGenerator. T-008 depende de T-005 ✓ e T-007. T-009 cria app/adapters/tts_provider_adapter.py + config/voices.json. tests/fixtures/sample_inputs/ pode ser reusado por testes de integração futuros.

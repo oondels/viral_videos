@@ -155,7 +155,7 @@ inputs:
 
 * id: T-006
   title: Create canonical sample inputs and test fixtures
-  status: false
+  status: true
   type: docs
   depends_on: [T-004]
   read_first:
