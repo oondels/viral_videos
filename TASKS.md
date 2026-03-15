@@ -479,7 +479,7 @@ inputs:
 
 * id: T-020
   title: Implement canonical stage logging and execution metadata
-  status: false
+  status: true
   type: code
   depends_on: [T-019]
   read_first:

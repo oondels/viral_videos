@@ -182,3 +182,11 @@ Every loop iteration must:
 - Validations: `pytest tests/integration/test_pipeline.py -v` → 7 passed; final.mp4 produzido; todos os artefatos canônicos existem; ordem de stages verificada via job.log; falha em lipsync preserva script/audio/timeline; falha em validate_input não cria workspace.
 - Docs updated: none.
 - Notes for next task: T-020 (observability logging, depends T-019 ✓) está desbloqueado. run_pipeline(job_file, llm, tts, lipsync) é o contrato canônico. PipelineError wraps a exceção original. JobLogger já emite eventos em JSON Lines — T-020 deve validar e fortalecer os campos obrigatórios do contrato.
+
+## 2026-03-15 - T-020 - Implement canonical stage logging and execution metadata
+
+- Outcome: pipeline.py atualizado para emitir stage_started/stage_completed retrospectivos para init_job_workspace após criação do workspace; tests/integration/test_observability.py criado com 12 testes validando contrato completo de logging; todos passando.
+- Files changed: app/pipeline.py (adicionados logs retrospectivos para init_job_workspace), tests/integration/test_observability.py (criado), TASKS.md (T-020 status → true).
+- Validations: `pytest tests/integration/test_observability.py -v` → 12 passed; cada linha do log é JSON válido; campos obrigatórios presentes em todos os entries; nomes de stage canônicos; nomes de evento canônicos; job_id consistente; cada stage tem started+completed; sem stage_failed em run de sucesso; render_metadata.json presente em sucesso; exatamente 1 stage_failed em falha (generate_lipsync); stage_failed tem error_type e error_message; render_metadata.json ausente em falha; validate_input failure não cria job.log.
+- Docs updated: none.
+- Notes for next task: T-021 (batch processing, depends T-019 ✓) está desbloqueado. O contrato completo de logging está validado: JSON Lines em logs/job.log, campos {timestamp_utc, job_id, stage, event, message}, events canônicos {stage_started, stage_completed, stage_failed}, stage_failed inclui {error_type, error_message}. validate_input falha antes do workspace — nenhum log é criado. init_job_workspace é logado retrospectivamente após workspace criado.

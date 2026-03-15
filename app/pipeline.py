@@ -85,6 +85,7 @@ def run_pipeline(
     # Stage 2: init_job_workspace                                          #
     # ------------------------------------------------------------------ #
     _process_logger.info("Stage: init_job_workspace")
+    t0_ws = _now_ms()
     try:
         init_workspace(ctx)
     except Exception as exc:
@@ -92,6 +93,13 @@ def run_pipeline(
         raise PipelineError(f"init_job_workspace: {exc}") from exc
 
     job_log = JobLogger(job.job_id, ctx.job_log())
+    # Retrospectively record init_job_workspace (log file now exists)
+    elapsed_ws = _now_ms() - t0_ws
+    job_log.log("init_job_workspace", "stage_started", "Starting init_job_workspace")
+    job_log.log(
+        "init_job_workspace", "stage_completed",
+        "Completed init_job_workspace", duration_ms=elapsed_ws,
+    )
 
     # ------------------------------------------------------------------ #
     # Helper: run one stage with timing and logging                        #
