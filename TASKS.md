@@ -84,7 +84,7 @@ inputs:
 
 * id: T-003
   title: Add the minimal CLI, config loader, and logger foundation
-  status: false
+  status: true
   type: code
   depends_on: [T-002]
   read_first:

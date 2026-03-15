@@ -1,9 +1,9 @@
 import argparse
 import sys
 
-from app.services.logging_config import setup_logging
+from app.logger import get_process_logger
 
-logger = setup_logging()
+logger = get_process_logger()
 
 
 def parse_args() -> argparse.Namespace:
