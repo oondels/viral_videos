@@ -433,7 +433,7 @@ inputs:
 
 * id: T-018
   title: Implement the final compositor and render metadata output
-  status: false
+  status: true
   type: code
   depends_on: [T-012, T-015, T-016, T-017]
   read_first:

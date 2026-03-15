@@ -166,3 +166,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_ffmpeg_adapter.py -v` → 15 passed; `pytest tests/unit/ -q` → 176 passed; timeline e background testes ainda passam após refatoração.
 - Docs updated: none.
 - Notes for next task: T-018 (compositor, depends T-012 ✓, T-015 ✓, T-016 ✓, T-017 ✓) está desbloqueado. Usar scale_and_trim_video() e concat_audio() do ffmpeg_adapter no compositor. get_video_dimensions() disponível para validar saída. FFmpegError para falhas de comando. make_color_video() em video_utils disponível para fixtures de teste.
+
+## 2026-03-15 - T-018 - Implement the final compositor and render metadata output
+
+- Outcome: compose_video() implementado com filter_complex dinâmico; clips e imagens inativas por janela de tempo; título via drawtext; legendas via subtitles filter; render_metadata.json com todos os campos obrigatórios; 9 testes de integração passando; 185 testes totais verdes.
+- Files changed: app/modules/compositor.py (criado), app/services/render_service.py (criado), tests/integration/test_compositor.py (criado), TASKS.md (T-018 status → true).
+- Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; final.mp4 existe e é 1080x1920; duração dentro de 0.10s; render_metadata.json com todos os campos; erros claros para artifacts ausentes.
+- Docs updated: none.
+- Notes for next task: T-019 (pipeline end-to-end, depends T-018 ✓) está desbloqueado. compose_video(ctx) → Path; write_render_metadata(ctx, preset_name, n) → dict. filter_complex usa -itsoffset por clip e -loop 1 por imagem inativa; cada input referenciado exatamente uma vez. CompositorError para falhas.
