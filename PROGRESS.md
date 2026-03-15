@@ -78,3 +78,11 @@ Every loop iteration must:
 - Validations: `validate_job()` executada em todos os 4 arquivos → todos passam com defaults corretos materializados.
 - Docs updated: none.
 - Notes for next task: T-007 (LLM adapter) e T-009 (TTS adapter) são os próximos desbloqueados. T-007 cria app/prompts/ + app/adapters/llm_adapter.py com interface ScriptGenerator. T-008 depende de T-005 ✓ e T-007. T-009 cria app/adapters/tts_provider_adapter.py + config/voices.json. tests/fixtures/sample_inputs/ pode ser reusado por testes de integração futuros.
+
+## 2026-03-15 - T-007 - Add script-generation prompts and provider interface
+
+- Outcome: interface ScriptGenerator (ABC), carregador de prompts e arquivos de prompt criados; 12 unit tests passando.
+- Files changed: app/prompts/script_system_prompt.md (criado), app/prompts/script_user_prompt_template.md (criado), app/adapters/llm_adapter.py (criado), tests/unit/test_llm_adapter.py (criado), TASKS.md (T-007 status → true).
+- Validations: `pytest tests/unit/test_llm_adapter.py -v` → 12 passed; prompts carregam do disco; interface abstrata não instanciável; subclasse concreta funciona.
+- Docs updated: none.
+- Notes for next task: T-008 depende de T-005 ✓ e T-007 ✓ — pode começar agora. T-009 (TTS adapter) também está desbloqueado (depends_on T-004 ✓). Interface ScriptGenerator: generate(system_prompt, user_prompt, job) → dict com title_hook + dialogue. ScriptGenerationError para falhas de provider. load_system_prompt() e load_user_prompt(job) são os loaders canônicos de prompts.

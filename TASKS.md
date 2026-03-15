@@ -178,7 +178,7 @@ inputs:
 
 * id: T-007
   title: Add script-generation prompts and provider interface
-  status: false
+  status: true
   type: code
   depends_on: [T-004]
   read_first:
