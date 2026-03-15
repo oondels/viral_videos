@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    image: viral-videos
+    env_file: .env
+    volumes:
+      - ./inputs:/app/inputs
+      - ./output:/app/output
+      - ./assets:/app/assets
+      - ./temp:/app/temp
+    working_dir: /app
