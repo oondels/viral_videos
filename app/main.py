@@ -47,7 +47,7 @@ def main() -> None:
 
         try:
             llm, tts, lipsync = _build_providers()
-        except NotImplementedError as exc:
+        except Exception as exc:
             logger.error("Provider setup failed: %s", exc)
             sys.exit(1)
 
@@ -64,7 +64,7 @@ def main() -> None:
 
         try:
             llm, tts, lipsync = _build_providers()
-        except NotImplementedError as exc:
+        except Exception as exc:
             logger.error("Provider setup failed: %s", exc)
             sys.exit(1)
 
