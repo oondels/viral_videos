@@ -174,3 +174,11 @@ Every loop iteration must:
 - Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; final.mp4 existe e é 1080x1920; duração dentro de 0.10s; render_metadata.json com todos os campos; erros claros para artifacts ausentes.
 - Docs updated: none.
 - Notes for next task: T-019 (pipeline end-to-end, depends T-018 ✓) está desbloqueado. compose_video(ctx) → Path; write_render_metadata(ctx, preset_name, n) → dict. filter_complex usa -itsoffset por clip e -loop 1 por imagem inativa; cada input referenciado exatamente uma vez. CompositorError para falhas.
+
+## 2026-03-15 - T-019 - Chain the full single-job pipeline end to end
+
+- Outcome: run_pipeline() implementado com os 10 stages canônicos em ordem; fail-fast; job_log emite stage_started/stage_completed/stage_failed; main.py atualizado; 7 testes de integração passando; 192 testes totais verdes.
+- Files changed: app/pipeline.py (criado), app/main.py (atualizado), tests/integration/test_pipeline.py (criado), TASKS.md (T-019 status → true).
+- Validations: `pytest tests/integration/test_pipeline.py -v` → 7 passed; final.mp4 produzido; todos os artefatos canônicos existem; ordem de stages verificada via job.log; falha em lipsync preserva script/audio/timeline; falha em validate_input não cria workspace.
+- Docs updated: none.
+- Notes for next task: T-020 (observability logging, depends T-019 ✓) está desbloqueado. run_pipeline(job_file, llm, tts, lipsync) é o contrato canônico. PipelineError wraps a exceção original. JobLogger já emite eventos em JSON Lines — T-020 deve validar e fortalecer os campos obrigatórios do contrato.

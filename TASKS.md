@@ -456,7 +456,7 @@ inputs:
 
 * id: T-019
   title: Chain the full single-job pipeline end to end
-  status: false
+  status: true
   type: code
   depends_on: [T-018]
   read_first:
