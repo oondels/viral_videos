@@ -110,3 +110,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/ -v` → 95 passed; segmentos gerados em audio/segments/NNN_speaker.wav; manifest.json com campos obrigatórios; duration_sec medida via ffprobe; voice mapping ausente falha antes de qualquer síntese; arquivo não escrito levanta TTSError.
 - Docs updated: none.
 - Notes for next task: T-011 depende de T-010 ✓ — pode começar. generate_tts(ctx, provider, voice_mapping) → lista de dicts do manifesto. audio_utils.write_silence_wav() pode ser reutilizado em testes futuros. ffprobe_utils.get_audio_duration() é o utilitário canônico para medir duração de áudio.
+
+## 2026-03-15 - T-011 - Build the master audio file and canonical timeline
+
+- Outcome: build_timeline() implementado; master_audio.wav concatenado via FFmpeg concat demuxer; timeline.json com start_sec/end_sec/duration_sec calculados sem gaps; 14 unit tests passando; 109 testes totais verdes.
+- Files changed: app/modules/timeline_builder.py (criado), tests/unit/test_timeline_builder.py (criado), TASKS.md (T-011 status → true).
+- Validations: `pytest tests/unit/test_timeline_builder.py -v` → 14 passed; `pytest tests/unit/ -q` → 109 passed; primeiro item em 0.0; sem gaps; last end_sec dentro de 0.05s do master; clip_file=null.
+- Docs updated: none.
+- Notes for next task: T-012 (subtitles, depends T-011 ✓) e T-013 (assets, depends T-001 ✓) estão ambos desbloqueados. T-014 depende de T-010 ✓ e T-013. T-015 depende de T-011 ✓ e T-014. TimelineError é a exceção canônica do módulo. concat_list.txt fica em audio/master/ como artefato de debug.

@@ -270,7 +270,7 @@ inputs:
 
 * id: T-011
   title: Build the master audio file and canonical timeline
-  status: false
+  status: true
   type: code
   depends_on: [T-010]
   read_first:
