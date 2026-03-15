@@ -39,7 +39,7 @@ inputs:
 
 * id: T-001
   title: Scaffold the minimum repository work tree
-  status: false
+  status: true
   type: code
   depends_on: []
   read_first:
