@@ -132,7 +132,7 @@ inputs:
 
 * id: T-005
   title: Add job context and canonical workspace path services
-  status: false
+  status: true
   type: code
   depends_on: [T-004]
   read_first:

@@ -62,3 +62,11 @@ Every loop iteration must:
 - Validations: `docker run --rm -v $(pwd):/app -w /app viral-videos pytest tests/unit/test_contracts.py -v` → 20 passed; defaults materializados corretamente; job_id gerado no formato job_YYYY_MM_DD_NNN.
 - Docs updated: none.
 - Notes for next task: T-005 e T-006 são ambos desbloqueados (depends_on T-004). T-005 centraliza job_id e workspace paths (app/core/job_context.py, app/services/file_service.py, app/utils/path_utils.py). T-006 adiciona fixtures de input. _ALLOWED_BACKGROUND_STYLES e _ALLOWED_OUTPUT_PRESETS em contracts.py são o local canônico para valores válidos de background/preset — T-013 pode expandir essa lista.
+
+## 2026-03-15 - T-005 - Add job context and canonical workspace path services
+
+- Outcome: autoridade canônica de paths implementada; workspace criado sob output/jobs/<job_id>/; 22 unit tests passando.
+- Files changed: app/utils/path_utils.py (criado), app/core/job_context.py (criado), app/services/file_service.py (criado), tests/unit/test_job_context.py (criado), TASKS.md (T-005 status → true).
+- Validations: `pytest tests/unit/test_job_context.py -v` → 22 passed; todos os subdirs canônicos criados; nenhum path fora de output/jobs/<job_id>; sem criação de assets/.
+- Docs updated: none.
+- Notes for next task: T-006 (fixtures) e T-007 (LLM adapter) são desbloqueados. T-006 depende do contrato de validação de T-004 — usar validate_job() para confirmar que os exemplos são válidos. T-007 cria o adapter LLM e prompts. T-008 depende de T-005 e T-007. JobContext é o objeto canônico de paths — todos os módulos devem recebê-lo por injeção.
