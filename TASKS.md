@@ -386,7 +386,7 @@ inputs:
 
 * id: T-016
   title: Select, loop, trim, and normalize the background video
-  status: false
+  status: true
   type: code
   depends_on: [T-013]
   read_first:

@@ -150,3 +150,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_lipsync_module.py -v` → 10 passed; `pytest tests/unit/ -q` → 152 passed; nomes de clip NNN_speaker_talk.mp4; apenas clip_file atualizado; duração dentro de 0.10s; erros claros para asset/engine ausentes.
 - Docs updated: none.
 - Notes for next task: T-016 (background selector, depends T-013 ✓) e T-017 (ffmpeg adapter, depends T-002 ✓) estão desbloqueados. generate_lipsync(ctx, engine) lê timeline.json, chama load_character(speaker), engine.generate(base_png, audio_file, clip_path), valida duração, escreve clip_file. BlackClipEngine (stub FFmpeg) em tests pode ser reutilizado em T-018.
+
+## 2026-03-15 - T-016 - Select, loop, trim, and normalize the background video
+
+- Outcome: prepare_background() implementado; seleção determinística por hash MD5 do job_id; looping via -stream_loop -1; trim via -t; scale-to-cover 1080x1920; 9 unit tests passando; 161 testes totais verdes.
+- Files changed: app/modules/background_selector.py (criado), tests/unit/test_background_selector.py (criado), TASKS.md (T-016 status → true).
+- Validations: `pytest tests/unit/test_background_selector.py -v` → 9 passed; seleção explícita usa categoria correta; auto-seleção determinística; fonte curta é loopada; fonte longa é trimada; output em canonical path.
+- Docs updated: none.
+- Notes for next task: T-017 (ffmpeg adapter, depends T-002 ✓) está desbloqueado. BackgroundError é a exceção canônica. prepare_background(ctx, required_duration_sec) é o contrato. _select_background(style, job_id) pode ser importada isoladamente para testes.
