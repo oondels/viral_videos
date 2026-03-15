@@ -30,12 +30,11 @@ def _build_providers():
     from app.adapters.elevenlabs_tts_adapter import ElevenLabsTTSProvider
     tts_provider = ElevenLabsTTSProvider(api_key=config.elevenlabs_api_key)
 
-    # Lip-sync engine — must be registered before use
-    raise NotImplementedError(
-        "No lip-sync engine registered. "
-        "Implement a LipSyncEngine adapter and register it here."
-    )
-    return llm_provider, tts_provider, None  # unreachable — raise above always fires
+    # Lip-sync engine — static image fallback (no GPU required)
+    from app.adapters.static_lipsync_adapter import StaticImageLipSync
+    lipsync_engine = StaticImageLipSync()
+
+    return llm_provider, tts_provider, lipsync_engine
 
 
 def main() -> None:
