@@ -502,7 +502,7 @@ inputs:
 
 * id: T-021
   title: Add sequential batch processing and final batch report
-  status: false
+  status: true
   type: code
   depends_on: [T-019]
   read_first:

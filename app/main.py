@@ -59,8 +59,21 @@ def main() -> None:
         return
 
     if args.batch:
-        logger.info("Modo batch: %s", args.batch)
-        raise NotImplementedError("Batch ainda não implementado (T-021)")
+        from pathlib import Path
+        from app.batch import run_batch
+
+        try:
+            llm, tts, lipsync = _build_providers()
+        except NotImplementedError as exc:
+            logger.error("Provider setup failed: %s", exc)
+            sys.exit(1)
+
+        try:
+            run_batch(Path(args.batch), llm, tts, lipsync)
+        except ValueError as exc:
+            logger.error("Batch failed: %s", exc)
+            sys.exit(1)
+        return
 
     logger.info("Nenhum argumento fornecido. Use --input ou --batch.")
     logger.info("Exemplo: python -m app.main --input inputs/examples/job_001.json")

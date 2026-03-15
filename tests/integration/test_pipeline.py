@@ -194,6 +194,7 @@ class TestPipelineSuccess:
         ]
         started = [e["stage"] for e in log_entries if e["event"] == "stage_started"]
         expected_order = [
+            "init_job_workspace",
             "write_script", "generate_tts", "build_timeline", "generate_lipsync",
             "prepare_background", "generate_subtitles", "compose_video", "finalize_job",
         ]
