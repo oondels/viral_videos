@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import Any
 
+from app.adapters.ffmpeg_adapter import FFmpegError, concat_audio
 from app.core.job_context import JobContext
 from app.utils.ffprobe_utils import get_audio_duration
 
-_FFMPEG_TIMEOUT_SEC = 60
 _DURATION_TOLERANCE_SEC = 0.05
 
 
@@ -46,32 +45,13 @@ def build_timeline(ctx: JobContext) -> list[dict[str, Any]]:
         if not seg_path.exists():
             raise TimelineError(f"Segment file missing: {seg_path}")
 
-    ctx.audio_master_dir().mkdir(parents=True, exist_ok=True)
     master_path = ctx.master_audio()
+    segment_paths = [Path(item["audio_file"]) for item in manifest]
 
-    concat_list = ctx.audio_master_dir() / "concat_list.txt"
-    list_lines = [
-        f"file '{Path(item['audio_file']).resolve()}'" for item in manifest
-    ]
-    concat_list.write_text("\n".join(list_lines), encoding="utf-8")
-
-    result = subprocess.run(
-        [
-            "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", str(concat_list),
-            "-c", "copy",
-            str(master_path),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=_FFMPEG_TIMEOUT_SEC,
-    )
-    if result.returncode != 0:
-        raise TimelineError(
-            f"FFmpeg concatenation failed (exit {result.returncode}): "
-            f"{result.stderr.strip()}"
-        )
+    try:
+        concat_audio(segment_paths, master_path)
+    except FFmpegError as exc:
+        raise TimelineError(f"Audio concatenation failed: {exc}") from exc
 
     if not master_path.exists():
         raise TimelineError(f"FFmpeg did not write master audio: {master_path}")

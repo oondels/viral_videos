@@ -158,3 +158,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_background_selector.py -v` → 9 passed; seleção explícita usa categoria correta; auto-seleção determinística; fonte curta é loopada; fonte longa é trimada; output em canonical path.
 - Docs updated: none.
 - Notes for next task: T-017 (ffmpeg adapter, depends T-002 ✓) está desbloqueado. BackgroundError é a exceção canônica. prepare_background(ctx, required_duration_sec) é o contrato. _select_background(style, job_id) pode ser importada isoladamente para testes.
+
+## 2026-03-15 - T-017 - Centralize FFmpeg and FFprobe operations
+
+- Outcome: app/adapters/ffmpeg_adapter.py criado com run_ffmpeg(), concat_audio(), scale_and_trim_video(); ffprobe_utils.py expandido com get_media_duration() e get_video_dimensions(); app/utils/video_utils.py criado com make_color_video(); background_selector.py e timeline_builder.py refatorados para usar o adapter; 15 unit tests passando; 176 testes totais verdes.
+- Files changed: app/adapters/ffmpeg_adapter.py (criado), app/utils/video_utils.py (criado), app/utils/ffprobe_utils.py (expandido: get_media_duration, get_video_dimensions, _run_ffprobe; get_audio_duration delegando a get_media_duration), app/modules/background_selector.py (refatorado para usar ffmpeg_adapter), app/modules/timeline_builder.py (refatorado para usar concat_audio), tests/unit/test_ffmpeg_adapter.py (criado), TASKS.md (T-017 status → true).
+- Validations: `pytest tests/unit/test_ffmpeg_adapter.py -v` → 15 passed; `pytest tests/unit/ -q` → 176 passed; timeline e background testes ainda passam após refatoração.
+- Docs updated: none.
+- Notes for next task: T-018 (compositor, depends T-012 ✓, T-015 ✓, T-016 ✓, T-017 ✓) está desbloqueado. Usar scale_and_trim_video() e concat_audio() do ffmpeg_adapter no compositor. get_video_dimensions() disponível para validar saída. FFmpegError para falhas de comando. make_color_video() em video_utils disponível para fixtures de teste.

@@ -409,7 +409,7 @@ inputs:
 
 * id: T-017
   title: Centralize FFmpeg and FFprobe operations
-  status: false
+  status: true
   type: code
   depends_on: [T-002]
   read_first:
