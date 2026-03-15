@@ -134,3 +134,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_asset_service.py -v` → 16 passed; TestRealAssets confirma ativos reais no repo; load_character/load_preset/resolve_font/list_backgrounds falham claramente para entradas inválidas.
 - Docs updated: none.
 - Notes for next task: T-014 (lip-sync boundary, depends T-010 ✓ e T-013 ✓) está desbloqueado. Asset service usa CWD-relative paths via _ASSETS_ROOT = Path('assets'). load_character() retorna {'base_png': Path, 'metadata': dict}. load_preset() valida os 11 campos obrigatórios. Fonte canônica: LiberationSans-Bold.ttf. Preset canônico: shorts_default.
+
+## 2026-03-15 - T-014 - Add the lip-sync engine boundary
+
+- Outcome: interface LipSyncEngine (ABC) implementada; LipSyncError definida; 6 unit tests passando; 142 testes totais verdes.
+- Files changed: app/adapters/lipsync_engine_adapter.py (criado), tests/unit/test_lipsync_adapter.py (criado), TASKS.md (T-014 status → true).
+- Validations: `pytest tests/unit/test_lipsync_adapter.py -v` → 6 passed; interface não instanciável; subclasse concreta funciona; LipSyncError levantada corretamente.
+- Docs updated: none.
+- Notes for next task: T-015 depende de T-011 ✓ e T-014 ✓ — pode começar agora. LipSyncEngine.generate(image_path, audio_path, output_path) → Path é o contrato canônico. LipSyncError para falhas de engine. T-015 deve implementar generate_lipsync(ctx, engine) em app/modules/lipsync.py.

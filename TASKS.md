@@ -340,7 +340,7 @@ inputs:
 
 * id: T-014
   title: Add the lip-sync engine boundary
-  status: false
+  status: true
   type: code
   depends_on: [T-010, T-013]
   read_first:
