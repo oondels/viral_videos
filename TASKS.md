@@ -201,7 +201,7 @@ inputs:
 
 * id: T-008
   title: Implement the script writer module
-  status: false
+  status: true
   type: code
   depends_on: [T-005, T-007]
   read_first:

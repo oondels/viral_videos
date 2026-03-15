@@ -86,3 +86,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_llm_adapter.py -v` → 12 passed; prompts carregam do disco; interface abstrata não instanciável; subclasse concreta funciona.
 - Docs updated: none.
 - Notes for next task: T-008 depende de T-005 ✓ e T-007 ✓ — pode começar agora. T-009 (TTS adapter) também está desbloqueado (depends_on T-004 ✓). Interface ScriptGenerator: generate(system_prompt, user_prompt, job) → dict com title_hook + dialogue. ScriptGenerationError para falhas de provider. load_system_prompt() e load_user_prompt(job) são os loaders canônicos de prompts.
+
+## 2026-03-15 - T-008 - Implement the script writer module
+
+- Outcome: módulo write_script() implementado com validação completa e persistência canônica; 15 unit tests passando.
+- Files changed: app/modules/script_writer.py (criado), tests/unit/test_script_writer.py (criado), TASKS.md (T-008 status → true).
+- Validations: `pytest tests/unit/test_script_writer.py -v` → 15 passed; script.json e dialogue.json escritos corretamente; alternação de speakers, line count, index, empty text, unknown speaker e title_hook rejeitados corretamente.
+- Docs updated: none.
+- Notes for next task: T-009 (TTS adapter) depende de T-004 ✓ — pode começar agora. T-010 depende de T-008 ✓ e T-009. Contrato de write_script: JobContext → persiste script_json() e dialogue_json() com JSON canônico. ScriptGenerationError é a exceção para falhas de validação do provider.
