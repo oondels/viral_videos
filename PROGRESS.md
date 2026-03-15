@@ -126,3 +126,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_subtitles.py -v` → 11 passed; primeiro cue em 00:00:00,000; numeração contígua desde 1; timings gap-free; texto idêntico ao da timeline; arquivo válido SRT.
 - Docs updated: none.
 - Notes for next task: T-013 (assets, depends T-001 ✓) está desbloqueado. T-014 depende de T-010 ✓ e T-013. T-015 depende de T-011 ✓ e T-014. SubtitleError é a exceção canônica. _sec_to_srt_timestamp() converte segundos para HH:MM:SS,mmm.
+
+## 2026-03-15 - T-013 - Prepare canonical character assets, fonts, and render presets
+
+- Outcome: ativos canônicos criados; asset_service.py implementado; 16 unit tests passando (12 isolados + 4 de integração com ativos reais); 136 testes totais verdes.
+- Files changed: assets/characters/char_a/base.png (criado, Pillow), assets/characters/char_a/metadata.json (criado), assets/characters/char_b/base.png (criado), assets/characters/char_b/metadata.json (criado), assets/fonts/LiberationSans-Bold.ttf (copiado, SIL OFL), assets/presets/shorts_default.json (criado, todos os campos obrigatórios), config/render.example.json (criado), app/services/asset_service.py (criado), tests/unit/test_asset_service.py (criado), TASKS.md (T-013 status → true).
+- Validations: `pytest tests/unit/test_asset_service.py -v` → 16 passed; TestRealAssets confirma ativos reais no repo; load_character/load_preset/resolve_font/list_backgrounds falham claramente para entradas inválidas.
+- Docs updated: none.
+- Notes for next task: T-014 (lip-sync boundary, depends T-010 ✓ e T-013 ✓) está desbloqueado. Asset service usa CWD-relative paths via _ASSETS_ROOT = Path('assets'). load_character() retorna {'base_png': Path, 'metadata': dict}. load_preset() valida os 11 campos obrigatórios. Fonte canônica: LiberationSans-Bold.ttf. Preset canônico: shorts_default.

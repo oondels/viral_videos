@@ -316,7 +316,7 @@ inputs:
 
 * id: T-013
   title: Prepare canonical character assets, fonts, and render presets
-  status: false
+  status: true
   type: docs
   depends_on: [T-001]
   read_first:
