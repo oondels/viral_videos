@@ -21,11 +21,19 @@ class ElevenLabsTTSProvider(TTSProvider):
             )
         try:
             from elevenlabs.client import ElevenLabs
+            from elevenlabs import VoiceSettings
         except ImportError as exc:
             raise TTSError(
                 "elevenlabs package is not installed. Run: pip install elevenlabs"
             ) from exc
         self._client = ElevenLabs(api_key=api_key)
+        # use_speaker_boost=True raises output loudness significantly above the
+        # ~-34 dB mean produced by default ElevenLabs settings.
+        self._voice_settings = VoiceSettings(
+            stability=0.5,
+            similarity_boost=0.75,
+            use_speaker_boost=True,
+        )
 
     def synthesize(self, text: str, voice_id: str, output_path: Path) -> None:
         """Call ElevenLabs and write the result as a WAV file.
@@ -44,6 +52,7 @@ class ElevenLabsTTSProvider(TTSProvider):
                 voice_id=voice_id,
                 model_id="eleven_multilingual_v2",
                 output_format="pcm_22050",
+                voice_settings=self._voice_settings,
             )
             # ElevenLabs SDK returns a generator of bytes chunks; join them.
             if isinstance(audio, (bytes, bytearray)):

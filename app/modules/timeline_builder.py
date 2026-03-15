@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.adapters.ffmpeg_adapter import FFmpegError, concat_audio
+from app.adapters.ffmpeg_adapter import FFmpegError, concat_audio, normalize_audio
 from app.core.job_context import JobContext
 from app.utils.ffprobe_utils import get_audio_duration
 
@@ -52,6 +52,11 @@ def build_timeline(ctx: JobContext) -> list[dict[str, Any]]:
         concat_audio(segment_paths, master_path)
     except FFmpegError as exc:
         raise TimelineError(f"Audio concatenation failed: {exc}") from exc
+
+    try:
+        normalize_audio(master_path, master_path)
+    except FFmpegError as exc:
+        raise TimelineError(f"Audio normalization failed: {exc}") from exc
 
     if not master_path.exists():
         raise TimelineError(f"FFmpeg did not write master audio: {master_path}")

@@ -67,6 +67,38 @@ def concat_audio(input_paths: list[Path], output_path: Path) -> None:
     )
 
 
+def normalize_audio(input_path: Path, output_path: Path) -> None:
+    """Normalize audio loudness to -14 LUFS (YouTube/streaming standard).
+
+    Applies the FFmpeg loudnorm filter (I=-14:TP=-1.5:LRA=11).  When
+    input_path and output_path are the same, a temporary file is used to
+    avoid FFmpeg's read/write conflict and then renamed into place.
+
+    Args:
+        input_path: Source audio file.
+        output_path: Destination file path (may equal input_path for in-place).
+
+    Raises:
+        FFmpegError: if FFmpeg fails.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = output_path.with_name(output_path.stem + "_loudnorm_tmp.wav")
+    try:
+        run_ffmpeg(
+            [
+                "ffmpeg", "-y",
+                "-i", str(input_path),
+                "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                str(tmp_path),
+            ]
+        )
+        tmp_path.replace(output_path)
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        raise
+
+
 def scale_and_trim_video(
     input_path: Path,
     output_path: Path,

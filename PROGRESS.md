@@ -214,3 +214,11 @@ Every loop iteration must:
 - Validations: `ruff check app/` → All checks passed; `pytest tests/ -q` → 223 passed; `python -m app.main --help` → saída correta; README aponta para docs/DESIGN_SPEC.md e docs/specs/.
 - Docs updated: README.md.
 - Notes for next task: Todos os 23 tasks do MVP estão completos. O pipeline end-to-end está implementado, testado e documentado. Para usar em produção: implementar adapters reais (LLM, TTS, LipSync) e registrá-los em app/main.py._build_providers().
+
+## 2026-03-15 - T-024 - Fix silent/quiet audio
+
+- Outcome: áudio silencioso corrigido em dois passos complementares.
+- Files changed: app/adapters/elevenlabs_tts_adapter.py (VoiceSettings com use_speaker_boost=True adicionado ao __init__; voice_settings passado para text_to_speech.convert()), app/adapters/ffmpeg_adapter.py (normalize_audio() adicionada com loudnorm=I=-14:TP=-1.5:LRA=11), app/modules/timeline_builder.py (normalize_audio importada; chamada após concat_audio em build_timeline()), TASKS.md (T-024 status → true).
+- Validations: `pytest tests/unit/ -q` → 185 passed; todos os testes de timeline_builder e ffmpeg_adapter continuam verdes após adição de normalize_audio no fluxo.
+- Docs updated: none.
+- Notes for next task: T-025 (subtitles font size, depends T-014 ✓) é a próxima e última task. normalize_audio() usa arquivo temporário com sufixo _loudnorm_tmp.wav para evitar conflito de leitura/escrita do FFmpeg; rename atômico via Path.replace(). Individual segment WAVs não são tocados — apenas master_audio.wav é normalizado.
