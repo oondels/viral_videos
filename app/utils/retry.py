@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 _log = logging.getLogger("viral_videos")
 

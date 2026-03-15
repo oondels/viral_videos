@@ -551,7 +551,7 @@ inputs:
 
 * id: T-023
   title: Add minimum operational documentation for humans and agents
-  status: false
+  status: true
   type: docs
   depends_on: [T-019]
   read_first:

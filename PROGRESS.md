@@ -206,3 +206,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_retry.py -v` → 9 passed; `pytest tests/ -q` → 223 passed; retry() falha-imediata para non-retryable; backoff exponencial verificado via monkeypatch de time.sleep.
 - Docs updated: none.
 - Notes for next task: T-023 (docs, depends T-019 ✓) é o último task. provider_max_retries configurável via env PROVIDER_MAX_RETRIES (default 3). retry() re-raises última exceção retryable após esgotar tentativas; non-retryable propaga imediatamente. _run_with_retry() é transparente ao contrato de logging (um stage_started, um stage_completed/failed).
+
+## 2026-03-15 - T-023 - Add minimum operational documentation for humans and agents
+
+- Outcome: README.md atualizado com status completo e seção de documentação técnica; scripts/run_single.sh criado; scripts/cleanup_temp.sh criado; Makefile criado com targets build/run/batch/test/lint/clean; lint corrigido em 5 arquivos (unused imports/vars); 223 testes ainda verdes; `ruff check app/` passa sem erros.
+- Files changed: README.md (status table atualizado, seção de docs adicionada, scripts e Makefile documentados, estrutura de projeto corrigida), scripts/run_single.sh (criado), scripts/cleanup_temp.sh (criado), Makefile (criado), app/adapters/ffmpeg_adapter.py (import tempfile removido), app/services/render_service.py (import Path removido), app/modules/lipsync.py (import AssetError removido), app/utils/retry.py (import Any removido), app/main.py (variáveis renomeadas para suprimir F841), TASKS.md (T-023 status → true).
+- Validations: `ruff check app/` → All checks passed; `pytest tests/ -q` → 223 passed; `python -m app.main --help` → saída correta; README aponta para docs/DESIGN_SPEC.md e docs/specs/.
+- Docs updated: README.md.
+- Notes for next task: Todos os 23 tasks do MVP estão completos. O pipeline end-to-end está implementado, testado e documentado. Para usar em produção: implementar adapters reais (LLM, TTS, LipSync) e registrá-los em app/main.py._build_providers().

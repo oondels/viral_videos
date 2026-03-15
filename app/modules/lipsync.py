@@ -7,7 +7,7 @@ from typing import Any
 
 from app.adapters.lipsync_engine_adapter import LipSyncEngine, LipSyncError
 from app.core.job_context import JobContext
-from app.services.asset_service import AssetError, load_character
+from app.services.asset_service import load_character
 from app.utils.ffprobe_utils import get_audio_duration
 
 _CLIP_DURATION_TOLERANCE_SEC = 0.10

@@ -4,8 +4,6 @@ Gerador automatizado de vídeos curtos verticais no estilo de diálogo humoríst
 
 **Um único comando. Um único input JSON. Um único vídeo MP4 vertical completo.**
 
-> **Status:** em implementação ativa. O pipeline end-to-end ainda não está conectado, mas os módulos individuais estão implementados e testados. Veja a seção [Status de Implementação](#status-de-implementação) abaixo.
-
 ---
 
 ## Como funciona
@@ -125,6 +123,25 @@ docker-compose run --rm app pytest tests/unit/test_timeline_builder.py -v
 docker-compose run --rm app ruff check app/
 ```
 
+### Makefile (atalhos)
+
+```bash
+make build                                    # build da imagem
+make run INPUT=inputs/examples/job_001.json   # job único
+make batch CSV=inputs/batch/jobs.csv          # batch
+make test                                     # todos os testes
+make lint                                     # linter
+make clean                                    # limpar temp/
+```
+
+### Scripts auxiliares
+
+```bash
+./scripts/run_single.sh inputs/examples/job_001.json   # job único via Docker Compose
+./scripts/run_batch.sh inputs/batch/jobs.csv           # batch via Docker Compose
+./scripts/cleanup_temp.sh                              # limpar temp/
+```
+
 ---
 
 ## Formato do input
@@ -207,19 +224,28 @@ output/jobs/<job_id>/
 │   │   ├── timeline_builder.py        # gera master_audio.wav e timeline.json
 │   │   ├── lipsync.py                 # gera clips por fala, atualiza clip_file
 │   │   ├── subtitles.py               # gera subtitles.srt
-│   │   ├── background_selector.py     # (em desenvolvimento)
-│   │   └── compositor.py             # (em desenvolvimento)
+│   │   ├── background_selector.py     # seleciona e prepara fundo 9:16
+│   │   └── compositor.py              # FFmpeg compõe final.mp4
 │   ├── adapters/
 │   │   ├── llm_adapter.py             # interface ScriptGenerator (ABC)
 │   │   ├── tts_provider_adapter.py    # interface TTSProvider (ABC)
-│   │   └── lipsync_engine_adapter.py  # interface LipSyncEngine (ABC)
+│   │   ├── lipsync_engine_adapter.py  # interface LipSyncEngine (ABC)
+│   │   └── ffmpeg_adapter.py          # wraps FFmpeg/FFprobe shell commands
 │   ├── services/
 │   │   ├── asset_service.py           # resolve e valida ativos fixos
-│   │   └── file_service.py            # cria workspace por job
+│   │   ├── file_service.py            # cria workspace por job
+│   │   └── render_service.py          # escreve render_metadata.json
+│   ├── core/
+│   │   ├── contracts.py               # validação Pydantic do input de job
+│   │   ├── exceptions.py              # hierarquia base de exceções
+│   │   ├── job_context.py             # autoridade canônica de paths por job
+│   │   └── types.py                   # tipos compartilhados
 │   └── utils/
 │       ├── path_utils.py              # paths canônicos de output
 │       ├── audio_utils.py             # geração de WAV silencioso (testes)
-│       └── ffprobe_utils.py           # medição de duração via ffprobe
+│       ├── ffprobe_utils.py           # medição de duração via ffprobe
+│       ├── retry.py                   # retry com backoff exponencial
+│       └── video_utils.py             # helpers de vídeo (testes)
 ├── assets/
 │   ├── characters/
 │   │   ├── char_a/                    # base.png + metadata.json
@@ -237,13 +263,19 @@ output/jobs/<job_id>/
 │   ├── examples/                      # jobs de exemplo prontos para uso
 │   └── batch/                         # CSVs para execução em lote
 ├── docs/
-│   ├── DESIGN_SPEC.md                 # fonte de verdade do projeto
-│   └── specs/                         # specs detalhadas por módulo
+│   ├── DESIGN_SPEC.md                 # fonte de verdade do projeto — leia primeiro
+│   └── specs/                         # specs detalhadas por módulo e subsistema
+├── scripts/
+│   ├── run_single.sh                  # atalho para job único via Docker Compose
+│   ├── run_batch.sh                   # atalho para batch via Docker Compose
+│   └── cleanup_temp.sh                # limpa temp/
 ├── tests/
 │   ├── unit/                          # testes por módulo
+│   ├── integration/                   # testes end-to-end por pipeline
 │   └── fixtures/                      # inputs de exemplo para testes
 ├── output/                            # artefatos gerados (não commitar)
 ├── temp/                              # cache temporário
+├── Makefile                           # atalhos para build, run, test, lint, clean
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
@@ -315,15 +347,25 @@ Para usar um provider diferente, implemente a interface correspondente e injete 
 | T-013 | Ativos fixos (personagens, fonte, preset) | ✅ |
 | T-014 | Interface lip-sync (adapter boundary) | ✅ |
 | T-015 | Geração de clips por fala (lip-sync) | ✅ |
-| T-016 | Seleção e preparação do fundo | 🔲 |
-| T-017 | Adapter centralizado de FFmpeg | 🔲 |
-| T-018 | Compositor final (FFmpeg) → final.mp4 | 🔲 |
-| T-019 | Pipeline end-to-end de job único | 🔲 |
-| T-020 | Logs e metadados canônicos por stage | 🔲 |
-| T-021 | Processamento batch sequencial | 🔲 |
-| T-022 | Hardening: erros, retries, timeouts | 🔲 |
-| T-023 | Documentação operacional final | 🔲 |
+| T-016 | Seleção e preparação do fundo | ✅ |
+| T-017 | Adapter centralizado de FFmpeg | ✅ |
+| T-018 | Compositor final (FFmpeg) → final.mp4 | ✅ |
+| T-019 | Pipeline end-to-end de job único | ✅ |
+| T-020 | Logs e metadados canônicos por stage | ✅ |
+| T-021 | Processamento batch sequencial | ✅ |
+| T-022 | Hardening: erros, retries, timeouts | ✅ |
+| T-023 | Documentação operacional final | ✅ |
 
 Consulte `TASKS.md` para o estado detalhado e `PROGRESS.md` para o histórico de progresso.
 
-Para a documentação técnica completa, comece por `docs/DESIGN_SPEC.md`.
+---
+
+## Documentação técnica
+
+| Documento | Conteúdo |
+|---|---|
+| `docs/DESIGN_SPEC.md` | Fonte de verdade raiz — escopo, invariantes arquiteturais, paths canônicos |
+| `docs/specs/` | Specs detalhadas por módulo e subsistema |
+| `docs/specs/README.md` | Índice de todas as specs |
+
+Comece por `docs/DESIGN_SPEC.md` antes de qualquer outra documentação.

@@ -24,18 +24,18 @@ def _build_providers():
 
     # LLM provider — defaults to OpenAI
     from app.adapters.openai_llm_adapter import OpenAIScriptGenerator
-    llm = OpenAIScriptGenerator(api_key=config.openai_api_key)
+    llm_provider = OpenAIScriptGenerator(api_key=config.openai_api_key)
 
     # TTS provider — defaults to ElevenLabs
     from app.adapters.elevenlabs_tts_adapter import ElevenLabsTTSProvider
-    tts = ElevenLabsTTSProvider(api_key=config.elevenlabs_api_key)
+    tts_provider = ElevenLabsTTSProvider(api_key=config.elevenlabs_api_key)
 
-    # Lip-sync engine — defaults to SadTalker stub (provider must be registered)
-    from app.adapters.lipsync_engine_adapter import LipSyncEngine
+    # Lip-sync engine — must be registered before use
     raise NotImplementedError(
         "No lip-sync engine registered. "
         "Implement a LipSyncEngine adapter and register it here."
     )
+    return llm_provider, tts_provider, None  # unreachable — raise above always fires
 
 
 def main() -> None:

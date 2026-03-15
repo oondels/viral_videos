@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import subprocess
-import tempfile
 from pathlib import Path
 
 _FFMPEG_TIMEOUT_SEC = 120
