@@ -94,3 +94,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/test_script_writer.py -v` → 15 passed; script.json e dialogue.json escritos corretamente; alternação de speakers, line count, index, empty text, unknown speaker e title_hook rejeitados corretamente.
 - Docs updated: none.
 - Notes for next task: T-009 (TTS adapter) depende de T-004 ✓ — pode começar agora. T-010 depende de T-008 ✓ e T-009. Contrato de write_script: JobContext → persiste script_json() e dialogue_json() com JSON canônico. ScriptGenerationError é a exceção para falhas de validação do provider.
+
+## 2026-03-15 - T-009 - Add the TTS provider boundary and voice mapping config
+
+- Outcome: interface TTSProvider (ABC), loaders de voice mapping e config/voices.json criados; 13 unit tests passando.
+- Files changed: app/adapters/tts_provider_adapter.py (criado), config/voices.example.json (criado), config/voices.json (criado), tests/unit/test_tts_adapter.py (criado), TASKS.md (T-009 status → true).
+- Validations: `pytest tests/unit/test_tts_adapter.py -v` → 13 passed; load_voice_mapping() e resolve_voice_id() funcionam; TTSProvider não instanciável diretamente; subclasse concreta funciona.
+- Docs updated: none.
+- Notes for next task: T-010 depende de T-008 ✓ e T-009 ✓ — pode começar agora. TTSProvider.synthesize(text, voice_id, output_path) é o contrato canônico. load_voice_mapping() carrega config/voices.json (runtime path relativo ao CWD). resolve_voice_id(character, mapping) levanta TTSError para speakers sem mapeamento. config/voices.json está commitado com voice_ids de placeholder para char_a e char_b.

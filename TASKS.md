@@ -224,7 +224,7 @@ inputs:
 
 * id: T-009
   title: Add the TTS provider boundary and voice mapping config
-  status: false
+  status: true
   type: code
   depends_on: [T-004]
   read_first:
