@@ -109,7 +109,7 @@ inputs:
 
 * id: T-004
   title: Implement the validated single-job input contract
-  status: false
+  status: true
   type: code
   depends_on: [T-003]
   read_first:
