@@ -242,7 +242,7 @@ inputs:
 
 * id: T-025
   title: Fix subtitle font size - subtitles render too large due to libass PlayResY mismatch
-  status: false
+  status: true
   type: code
   depends_on: [T-014]
   read_first:

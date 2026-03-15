@@ -192,9 +192,19 @@ def compose_video(ctx: JobContext) -> Path:
     # Burn subtitles
     srt_escaped = _escape_ffmpeg_path(ctx.subtitles_srt())
     fontsdir_escaped = _escape_ffmpeg_path(sub_font.parent)
+
+    # libass uses PlayResY=288 as its internal reference height when rendering
+    # SRT files.  A raw FontSize=64 at PlayResY=288 scales to
+    # (64/288)×H ≈ 427 px on a 1920-tall canvas — far too large.
+    # Correct mapping: libass_pts = preset_px × PlayResY / canvas_height.
+    # For font_size=64 on H=1920: 64×288/1920 = 9.6 → 10 libass pts,
+    # which renders as visually ≈64 px on the final 1920-tall video.
+    _LIBASS_PLAY_RES_Y = 288
+    libass_font_size = max(1, round(sub_style["font_size"] * _LIBASS_PLAY_RES_Y / H))
+
     force_style = (
         f"FontName={sub_font.stem},"
-        f"FontSize={sub_style['font_size']},"
+        f"FontSize={libass_font_size},"
         f"PrimaryColour=&H00FFFFFF,"
         f"OutlineColour=&H00000000,"
         f"Outline={sub_style['stroke_width']}"

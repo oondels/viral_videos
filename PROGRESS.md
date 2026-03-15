@@ -222,3 +222,11 @@ Every loop iteration must:
 - Validations: `pytest tests/unit/ -q` → 185 passed; todos os testes de timeline_builder e ffmpeg_adapter continuam verdes após adição de normalize_audio no fluxo.
 - Docs updated: none.
 - Notes for next task: T-025 (subtitles font size, depends T-014 ✓) é a próxima e última task. normalize_audio() usa arquivo temporário com sufixo _loudnorm_tmp.wav para evitar conflito de leitura/escrita do FFmpeg; rename atômico via Path.replace(). Individual segment WAVs não são tocados — apenas master_audio.wav é normalizado.
+
+## 2026-03-15 - T-025 - Fix subtitle font size (libass PlayResY mismatch)
+
+- Outcome: subtítulos corrigidos para tamanho visual correto (~64 px em canvas de 1920 px) através de conversão libass PlayResY.
+- Files changed: app/modules/compositor.py (adicionado cálculo de libass_font_size antes de force_style; substituído FontSize={sub_style['font_size']} por FontSize={libass_font_size}; comentário explicativo sobre PlayResY=288 adicionado), TASKS.md (T-025 status → true).
+- Validations: `pytest tests/ -q` → 223 passed; nenhuma regressão.
+- Docs updated: none (assets/presets/shorts_default.json mantido com font_size=64 — agora significa "64 px visuais na altura nativa do preset").
+- Notes for next task: Todos os 25 tasks estão completos. O MVP está implementado, testado e documentado. Fórmula canônica: libass_font_size = max(1, round(font_size_px × 288 / canvas_height)). _LIBASS_PLAY_RES_Y = 288 é constante local no compositor.
