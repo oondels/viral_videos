@@ -525,7 +525,7 @@ inputs:
 
 * id: T-022
   title: Harden the MVP with validation, retries, and minimum tests
-  status: false
+  status: true
   type: code
   depends_on: [T-020]
   read_first:

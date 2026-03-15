@@ -6,9 +6,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from app.adapters.lipsync_engine_adapter import LipSyncEngine
-from app.adapters.llm_adapter import ScriptGenerator
-from app.adapters.tts_provider_adapter import TTSProvider, load_voice_mapping
+from app.adapters.lipsync_engine_adapter import LipSyncEngine, LipSyncError
+from app.adapters.llm_adapter import ScriptGenerator, ScriptGenerationError
+from app.adapters.tts_provider_adapter import TTSProvider, TTSError, load_voice_mapping
+from app.config import config
 from app.core.contracts import validate_job
 from app.core.job_context import JobContext
 from app.logger import JobLogger, get_process_logger
@@ -20,6 +21,7 @@ from app.modules.subtitles import generate_subtitles
 from app.modules.timeline_builder import build_timeline
 from app.modules.tts import generate_tts
 from app.services.file_service import init_workspace
+from app.utils.retry import retry
 
 _process_logger = get_process_logger()
 
@@ -122,16 +124,57 @@ def run_pipeline(
             )
             raise PipelineError(f"{stage}: {exc}") from exc
 
+    def _run_with_retry(
+        stage: str,
+        retryable: tuple[type[Exception], ...],
+        fn: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """Like _run but wraps fn in retry logic for transient provider errors."""
+        def _call() -> Any:
+            return fn(*args, **kwargs)
+
+        job_log.log(stage, "stage_started", f"Starting {stage}")
+        t0 = _now_ms()
+        try:
+            result = retry(
+                _call,
+                retryable=retryable,
+                max_attempts=config.provider_max_retries,
+            )
+            elapsed = _now_ms() - t0
+            job_log.log(stage, "stage_completed", f"Completed {stage}", duration_ms=elapsed)
+            return result
+        except Exception as exc:
+            elapsed = _now_ms() - t0
+            job_log.log(
+                stage, "stage_failed", f"Failed {stage}",
+                duration_ms=elapsed,
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
+            raise PipelineError(f"{stage}: {exc}") from exc
+
     # ------------------------------------------------------------------ #
     # Stages 3–10                                                          #
     # ------------------------------------------------------------------ #
     try:
         voice_mapping = load_voice_mapping()
 
-        _run("write_script", write_script, ctx, llm_provider)
-        _run("generate_tts", generate_tts, ctx, tts_provider, voice_mapping)
+        _run_with_retry(
+            "write_script", (ScriptGenerationError,),
+            write_script, ctx, llm_provider,
+        )
+        _run_with_retry(
+            "generate_tts", (TTSError,),
+            generate_tts, ctx, tts_provider, voice_mapping,
+        )
         _run("build_timeline", build_timeline, ctx)
-        _run("generate_lipsync", generate_lipsync, ctx, lipsync_engine)
+        _run_with_retry(
+            "generate_lipsync", (LipSyncError,),
+            generate_lipsync, ctx, lipsync_engine,
+        )
 
         timeline = json.loads(ctx.timeline_json().read_text(encoding="utf-8"))
         total_duration = timeline[-1]["end_sec"]

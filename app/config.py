@@ -26,5 +26,10 @@ class _Config:
     def google_application_credentials(self) -> str:
         return os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 
+    @property
+    def provider_max_retries(self) -> int:
+        """Maximum attempts for external provider calls (LLM, TTS, lip-sync)."""
+        return int(os.getenv("PROVIDER_MAX_RETRIES", "3"))
+
 
 config = _Config()

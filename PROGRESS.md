@@ -198,3 +198,11 @@ Every loop iteration must:
 - Validations: `pytest tests/integration/test_batch.py -v` → 10 passed; `pytest tests/ -q` → 214 passed; batch com 2 itens válidos produz 2 workspaces isolados; batch com item inválido continua e reporta falha; report escrito em output/batch_reports/latest_report.json com todos os campos obrigatórios.
 - Docs updated: none.
 - Notes for next task: T-022 (hardening, depends T-020 ✓) e T-023 (docs, depends T-019 ✓) estão ambos desbloqueados. T-022 é o primeiro na ordem. run_batch(batch_file, llm, tts, lipsync) → report dict; cada item tem job_id, input_ref, status, output_file, error_message. _parse_row() converte CSV row em job payload (topic obrigatório; outros opcionais). job_id=None em itens falhados antes de run_pipeline.
+
+## 2026-03-15 - T-022 - Harden the MVP with validation, retries, and minimum tests
+
+- Outcome: app/core/exceptions.py criado com base ViralVideosError e hierarquia documentada; app/utils/retry.py criado com retry() exponential backoff; app/config.py expandido com provider_max_retries; pipeline.py atualizado para usar _run_with_retry() para write_script, generate_tts, generate_lipsync; 9 unit tests de retry passando; 223 testes totais verdes.
+- Files changed: app/core/exceptions.py (criado), app/utils/retry.py (criado), app/config.py (provider_max_retries adicionado), app/pipeline.py (_run_with_retry() adicionado; write_script/generate_tts/generate_lipsync usam retry), tests/unit/test_retry.py (criado, 9 testes), TASKS.md (T-022 status → true).
+- Validations: `pytest tests/unit/test_retry.py -v` → 9 passed; `pytest tests/ -q` → 223 passed; retry() falha-imediata para non-retryable; backoff exponencial verificado via monkeypatch de time.sleep.
+- Docs updated: none.
+- Notes for next task: T-023 (docs, depends T-019 ✓) é o último task. provider_max_retries configurável via env PROVIDER_MAX_RETRIES (default 3). retry() re-raises última exceção retryable após esgotar tentativas; non-retryable propaga imediatamente. _run_with_retry() é transparente ao contrato de logging (um stage_started, um stage_completed/failed).
