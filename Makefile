@@ -1,4 +1,10 @@
-.PHONY: build run batch resume test lint clean help
+.PHONY: build run batch resume test lint clean help setup-dirs
+
+RUNTIME_DIRS := output output/jobs temp
+
+# Ensure writable directories exist with host-user ownership before Docker mounts them.
+setup-dirs:
+	@mkdir -p $(RUNTIME_DIRS)
 
 # Default target
 help:
@@ -18,22 +24,22 @@ help:
 build:
 	docker build -t viral-videos .
 
-run:
+run: setup-dirs
 	@if [ -z "$(INPUT)" ]; then echo "Usage: make run INPUT=inputs/examples/job_001.json"; exit 1; fi
 	docker compose run --rm app python -m app.main --input $(INPUT)
 
-batch:
+batch: setup-dirs
 	@if [ -z "$(CSV)" ]; then echo "Usage: make batch CSV=inputs/batch/jobs.csv"; exit 1; fi
 	docker compose run --rm app python -m app.main --batch $(CSV)
 
-resume:
+resume: setup-dirs
 	@if [ -z "$(JOB_ID)" ]; then echo "Usage: make resume JOB_ID=job_2026_03_15_935"; exit 1; fi
 	docker compose run --rm app python -m app.main --resume $(JOB_ID)
 
-test:
+test: setup-dirs
 	docker compose run --rm app pytest
 
-test-unit:
+test-unit: setup-dirs
 	docker compose run --rm app pytest tests/unit/ -v
 
 lint:
