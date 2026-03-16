@@ -56,3 +56,11 @@ Every loop iteration must:
 - Validations: `pytest tests/ -q` → 233 passed; leitura manual da spec confirma consistência interna.
 - Docs updated: docs/specs/MODULE_COMPOSITOR_SPEC.md.
 - Notes for next task: T-003 deve adicionar `speaker_transition_duration_sec` e `speaker_anchor` ao preset `shorts_default.json` e validar em `asset_service.py`. Os campos estão definidos na spec como obrigatórios.
+
+## 2026-03-16 - T-003 - Adicionar campos de transição ao preset shorts_default.json
+
+- Outcome: campos `speaker_transition_duration_sec: 0.15` e `speaker_anchor: "center"` adicionados ao preset e à validação em `load_preset()`. Todas as fixtures de teste de integração atualizadas.
+- Files changed: assets/presets/shorts_default.json, app/services/asset_service.py, tests/unit/test_asset_service.py, tests/integration/test_compositor.py, tests/integration/test_pipeline.py, tests/integration/test_batch.py, tests/integration/test_observability.py, tests/integration/test_resume.py.
+- Validations: `pytest tests/ -q` → 233 passed.
+- Docs updated: none.
+- Notes for next task: T-004 deve refatorar `compose_video()` para posições horizontais fixas por personagem. Os novos campos de preset já estão disponíveis via `load_preset()`. Preset sem os novos campos levanta `AssetError` com mensagem descritiva.

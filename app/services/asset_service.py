@@ -19,6 +19,8 @@ _REQUIRED_PRESET_FIELDS = {
     "inactive_speaker_box",
     "subtitle_safe_area",
     "subtitle_style",
+    "speaker_transition_duration_sec",
+    "speaker_anchor",
 }
 
 

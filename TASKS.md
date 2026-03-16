@@ -165,7 +165,7 @@ inputs:
 
 * id: T-003
   title: Adicionar campos de transição ao preset shorts_default.json
-  status: false
+  status: true
   type: chore
   depends_on: [T-002]
   read_first:

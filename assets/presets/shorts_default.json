@@ -46,5 +46,7 @@
     "stroke_color": "black",
     "stroke_width": 4,
     "align": "center"
-  }
+  },
+  "speaker_transition_duration_sec": 0.15,
+  "speaker_anchor": "center"
 }

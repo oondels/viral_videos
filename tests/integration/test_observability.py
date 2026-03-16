@@ -132,6 +132,8 @@ def _setup_assets(tmp_path: Path) -> None:
         "subtitle_safe_area": {"x": 40, "y": 1580, "w": 1000, "h": 280},
         "subtitle_style": {"font": "LiberationSans-Bold.ttf", "font_size": 48,
                            "color": "white", "stroke_color": "black", "stroke_width": 3, "align": "center"},
+        "speaker_transition_duration_sec": 0.15,
+        "speaker_anchor": "center",
     }
     (preset_dir / "shorts_default.json").write_text(json.dumps(preset))
 

@@ -112,6 +112,8 @@ def _setup_all_artifacts(tmp_path: Path, ctx: JobContext) -> None:
             "stroke_width": 3,
             "align": "center",
         },
+        "speaker_transition_duration_sec": 0.15,
+        "speaker_anchor": "center",
     }
     (preset_dir / "shorts_default.json").write_text(
         json.dumps(preset), encoding="utf-8"
