@@ -105,6 +105,12 @@ def compose_video(ctx: JobContext) -> Path:
     total_duration = timeline[-1]["end_sec"]
     all_speakers = sorted(set(item["speaker"] for item in timeline))
 
+    # Fixed character positions: first alphabetically = left, second = right
+    char_a_id = all_speakers[0]
+    # all_speakers[1] is always on the right (ibox side)
+    char_a_x = abox["x"]   # left side (fixed for char_a)
+    char_b_x = ibox["x"]   # right side (fixed for char_b)
+
     # ------------------------------------------------------------------ #
     # Build FFmpeg input list                                              #
     # ------------------------------------------------------------------ #
@@ -160,18 +166,22 @@ def compose_video(ctx: JobContext) -> Path:
     )
     current = "bg_titled"
 
-    # Overlay clips and inactive speaker images per timeline item
+    # Overlay clips and inactive speaker images per timeline item.
+    # Each character occupies a fixed horizontal position: char_a (first
+    # alphabetically) always on the left, char_b always on the right.
     for i, item in enumerate(timeline):
         start = item["start_sec"]
         end = item["end_sec"]
         clip_in = clip_indices[i]
         img_in = inactive_img_indices[i]
+        active_id = item["speaker"]
 
         c_scaled = f"c{i}"
         img_scaled = f"img{i}"
         after_clip = f"bgc{i}"
         after_img = f"bgi{i}"
 
+        # Scale active clip to active box, inactive image to inactive box
         filters.append(
             f"[{clip_in}:v]scale={abox['w']}:{abox['h']}:"
             f"force_original_aspect_ratio=decrease,"
@@ -182,14 +192,24 @@ def compose_video(ctx: JobContext) -> Path:
             f"[{img_in}:v]scale={ibox['w']}:{ibox['h']},"
             f"setsar=1,format=yuv420p[{img_scaled}]"
         )
+
+        # Fixed position per character: clip goes to the active character's
+        # fixed side, inactive image goes to the other character's fixed side.
+        if active_id == char_a_id:
+            clip_x, clip_y = char_a_x, abox["y"]
+            img_x, img_y = char_b_x, ibox["y"]
+        else:
+            clip_x, clip_y = char_b_x, abox["y"]
+            img_x, img_y = char_a_x, ibox["y"]
+
         filters.append(
             f"[{current}][{c_scaled}]overlay="
-            f"x={abox['x']}:y={abox['y']}:"
+            f"x={clip_x}:y={clip_y}:"
             f"enable='between(t,{start},{end})'[{after_clip}]"
         )
         filters.append(
             f"[{after_clip}][{img_scaled}]overlay="
-            f"x={ibox['x']}:y={ibox['y']}:"
+            f"x={img_x}:y={img_y}:"
             f"enable='between(t,{start},{end})'[{after_img}]"
         )
         current = after_img

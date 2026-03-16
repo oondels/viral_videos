@@ -64,3 +64,11 @@ Every loop iteration must:
 - Validations: `pytest tests/ -q` → 233 passed.
 - Docs updated: none.
 - Notes for next task: T-004 deve refatorar `compose_video()` para posições horizontais fixas por personagem. Os novos campos de preset já estão disponíveis via `load_preset()`. Preset sem os novos campos levanta `AssetError` com mensagem descritiva.
+
+## 2026-03-16 - T-004 - Implementar posições horizontais fixas por personagem no compositor
+
+- Outcome: `compose_video()` refatorado para que cada personagem ocupe sempre a mesma posição horizontal fixa: char_a (primeiro alfabeticamente) sempre à esquerda (`abox.x`), char_b sempre à direita (`ibox.x`). Quando char_b é o speaker ativo, seu clip vai para o lado direito e a imagem inativa de char_a vai para o lado esquerdo — eliminando o swap de lado que ocorria antes.
+- Files changed: app/modules/compositor.py, TASKS.md, PROGRESS.md.
+- Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; `pytest tests/ -q` → 233 passed; `ruff check app/modules/compositor.py` → sem erros.
+- Docs updated: none.
+- Notes for next task: T-005 deve adicionar a animação de escala suave (ease-in-out) usando `scale` com `eval=frame` e expressões de tempo `t` conforme decisão do spike T-001. As posições horizontais fixas por personagem já estão implementadas — a animação deve interpolar apenas w/h (escala), mantendo x fixo por personagem. A troca de speaker ainda é um corte seco de escala neste ponto.

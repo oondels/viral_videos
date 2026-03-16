@@ -209,7 +209,7 @@ inputs:
 
 * id: T-004
   title: Implementar posições horizontais fixas por personagem no compositor
-  status: false
+  status: true
   type: code
   depends_on: [T-003]
   read_first:
