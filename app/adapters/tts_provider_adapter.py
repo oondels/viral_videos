@@ -67,8 +67,8 @@ def resolve_voice_id(character: str, mapping: dict[str, str]) -> str:
 class TTSProvider(ABC):
     """Provider-agnostic interface for text-to-speech synthesis.
 
-    Each call to synthesize must generate exactly one audio file.
-    The output file must be a mono WAV at a consistent sample rate.
+    Each call to synthesize must generate exactly one audio file
+    (MP3 format preferred).
     """
 
     @abstractmethod
@@ -78,7 +78,7 @@ class TTSProvider(ABC):
         Args:
             text: The plain spoken text to synthesize.
             voice_id: The provider-specific voice identifier.
-            output_path: Destination path for the mono WAV file.
+            output_path: Destination path for the audio file.
 
         Raises:
             TTSError: if synthesis fails or the provider returns an error.

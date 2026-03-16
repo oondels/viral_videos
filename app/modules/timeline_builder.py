@@ -21,7 +21,7 @@ class TimelineError(Exception):
 def build_timeline(ctx: JobContext) -> list[dict[str, Any]]:
     """Build master_audio.wav and timeline.json from manifest.
 
-    Reads audio/manifest.json, concatenates segments into master_audio.wav,
+    Reads audio/manifest.json, concatenates MP3 segments into master_audio.wav,
     computes start_sec/end_sec/duration_sec for each line, and writes
     timeline.json with clip_file initialized to null.
 

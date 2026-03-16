@@ -15,8 +15,8 @@ Input JSON
   → 1. validate_input        — valida schema, materializa defaults, gera job_id
   → 2. init_job_workspace    — cria árvore de diretórios em output/jobs/<job_id>/
   → 3. write_script          — LLM gera hook + diálogo entre dois personagens
-  → 4. generate_tts          — TTS por fala → WAV por linha + manifest.json
-  → 5. build_timeline        — concatena WAVs → master_audio.wav + timeline.json
+  → 4. generate_tts          — TTS por fala → MP3 por linha + manifest.json
+  → 5. build_timeline        — concatena MP3s → master_audio.wav + timeline.json
   → 6. generate_lipsync      — lip-sync por fala → clip MP4 por linha
   → 7. prepare_background    — seleciona fundo, adapta duração e formato 9:16
   → 8. generate_subtitles    — gera subtitles.srt a partir da timeline
@@ -215,8 +215,8 @@ output/jobs/<job_id>/
 │   └── timeline.json        # timeline consolidada com start_sec/end_sec
 ├── audio/
 │   ├── segments/
-│   │   ├── 001_char_a.wav   # áudio por fala
-│   │   └── 002_char_b.wav
+│   │   ├── 001_char_a.mp3   # áudio por fala
+│   │   └── 002_char_b.mp3
 │   ├── manifest.json        # fala → arquivo → duração medida
 │   └── master/
 │       ├── master_audio.wav # áudio final concatenado
@@ -251,7 +251,7 @@ output/jobs/<job_id>/
 │   │   └── types.py                   # tipos compartilhados
 │   ├── modules/
 │   │   ├── script_writer.py           # gera script.json e dialogue.json
-│   │   ├── tts.py                     # gera segmentos WAV e manifest.json
+│   │   ├── tts.py                     # gera segmentos MP3 e manifest.json
 │   │   ├── timeline_builder.py        # gera master_audio.wav e timeline.json
 │   │   ├── lipsync.py                 # gera clips por fala, atualiza clip_file
 │   │   ├── subtitles.py               # gera subtitles.srt

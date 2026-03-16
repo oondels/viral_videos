@@ -96,7 +96,7 @@ class TestGenerateTTSSuccess:
         generate_tts(ctx, SilenceProvider(), VOICE_MAPPING)
         for line in dialogue:
             segment = ctx.audio_segment(line["index"], line["speaker"])
-            assert segment.name == f"{line['index']:03d}_{line['speaker']}.wav"
+            assert segment.name == f"{line['index']:03d}_{line['speaker']}.mp3"
 
     def test_writes_manifest_json(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

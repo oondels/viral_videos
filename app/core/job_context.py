@@ -52,7 +52,7 @@ class JobContext:
 
     def audio_segment(self, index: int, character: str) -> Path:
         """Return the canonical path for one audio segment file."""
-        return self.audio_segments_dir() / f"{index:03d}_{character}.wav"
+        return self.audio_segments_dir() / f"{index:03d}_{character}.mp3"
 
     def audio_manifest(self) -> Path:
         return self.audio_dir() / "manifest.json"

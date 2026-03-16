@@ -56,11 +56,11 @@ class TestJobContextPaths:
     def test_audio_segment_naming(self):
         ctx = _make_ctx()
         path = ctx.audio_segment(1, "char_a")
-        assert path.name == "001_char_a.wav"
+        assert path.name == "001_char_a.mp3"
 
     def test_audio_segment_index_padding(self):
         ctx = _make_ctx()
-        assert ctx.audio_segment(7, "char_b").name == "007_char_b.wav"
+        assert ctx.audio_segment(7, "char_b").name == "007_char_b.mp3"
 
     def test_audio_manifest(self):
         ctx = _make_ctx()

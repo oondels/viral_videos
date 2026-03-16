@@ -43,7 +43,7 @@ database, no message queue, no shared state — only files on disk.
                                   script/dialogue.json
 
 4.  generate_tts          reads: dialogue.json, TTS provider, voices config
-                          writes: audio/segments/NNN_speaker.wav  (one per line)
+                          writes: audio/segments/NNN_speaker.mp3  (one per line)
                                   audio/manifest.json
 
 5.  build_timeline        reads: manifest.json

@@ -12,8 +12,8 @@ Define the behavior for converting each dialogue line into a normalized audio se
 
 ## Outputs
 
-- `output/jobs/<job_id>/audio/segments/001_char_a.wav`
-- `output/jobs/<job_id>/audio/segments/002_char_b.wav`
+- `output/jobs/<job_id>/audio/segments/001_char_a.mp3`
+- `output/jobs/<job_id>/audio/segments/002_char_b.mp3`
 - `output/jobs/<job_id>/audio/manifest.json`
 
 ## Manifest contract
@@ -26,7 +26,7 @@ Each manifest item must contain:
   "speaker": "char_a",
   "text": "Why does everything cost more now?",
   "voice_id": "voice_char_a",
-  "audio_file": "output/jobs/<job_id>/audio/segments/001_char_a.wav",
+  "audio_file": "output/jobs/<job_id>/audio/segments/001_char_a.mp3",
   "duration_sec": 2.31
 }
 ```
@@ -35,9 +35,8 @@ Each manifest item must contain:
 
 - The module must generate exactly one audio file per dialogue item.
 - File naming must preserve line order and speaker id.
-- All persisted segment files must be mono WAV (pcm_s16le, 44100 Hz).
-- TTS providers that return non-WAV formats (e.g. MP3) must convert to WAV via `convert_to_wav()` before persisting the segment. The temporary provider-native file must be cleaned up after conversion.
-- All persisted segment files must share the same sample rate (44100 Hz).
+- Providers that return MP3 natively (e.g. ElevenLabs) must save the audio directly without conversion.
+- All persisted segment files must share a consistent format per provider run.
 - `duration_sec` must be measured from the persisted file, not estimated.
 - Manifest order must match dialogue order exactly.
 - Voice mapping resolution must use `config/voices.json` as the canonical runtime source.
@@ -61,7 +60,7 @@ Each manifest item must contain:
 ## Acceptance tests
 
 - A 6-line dialogue produces 6 segment files and 6 manifest items.
-- Segment file names follow `NNN_<speaker>.wav`.
+- Segment file names follow `NNN_<speaker>.mp3`.
 - Every manifest item points to an existing file.
 - A missing voice mapping raises a clear error and stops the module.
 - The order of manifest items matches the order in `dialogue.json`.

@@ -26,7 +26,7 @@ Each timeline item must contain:
   "start_sec": 0.0,
   "end_sec": 2.31,
   "duration_sec": 2.31,
-  "audio_file": "output/jobs/<job_id>/audio/segments/001_char_a.wav",
+  "audio_file": "output/jobs/<job_id>/audio/segments/001_char_a.mp3",
   "clip_file": null
 }
 ```

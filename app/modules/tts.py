@@ -63,7 +63,7 @@ def generate_tts(
             )
 
         duration = get_audio_duration(segment_path)
-
+        print(f"Duração do segmento de áudio: {duration} segundos")
         manifest.append(
             {
                 "index": idx,

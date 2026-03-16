@@ -141,8 +141,8 @@ Todo job deve persistir em:
 - `script/script.json`
 - `script/dialogue.json`
 - `script/timeline.json`
-- `audio/segments/001_char_a.wav`
-- `audio/segments/002_char_b.wav`
+- `audio/segments/001_char_a.mp3`
+- `audio/segments/002_char_b.mp3`
 - `audio/manifest.json`
 - `audio/master/master_audio.wav`
 - `clips/001_char_a_talk.mp4`

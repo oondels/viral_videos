@@ -87,7 +87,7 @@ class TestTTSProviderInterface:
                 output_path.write_bytes(b"fake_audio")
 
         p = StubProvider()
-        out = tmp_path / "segment.wav"
+        out = tmp_path / "segment.mp3"
         p.synthesize("hello", "v_a", out)
         assert out.exists()
 

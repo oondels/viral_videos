@@ -59,7 +59,7 @@ def _make_timeline(n: int = 6, duration_sec: float = 1.0) -> list[dict[str, Any]
                 "start_sec": start,
                 "end_sec": end,
                 "duration_sec": round(end - start, 4),
-                "audio_file": f"output/jobs/x/audio/segments/{i+1:03d}_char.wav",
+                "audio_file": f"output/jobs/x/audio/segments/{i+1:03d}_char.mp3",
                 "clip_file": None,
             }
         )
