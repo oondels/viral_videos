@@ -180,7 +180,7 @@ def compose_video(ctx: JobContext) -> Path:
         )
         filters.append(
             f"[{img_in}:v]scale={ibox['w']}:{ibox['h']},"
-            f"format=yuv420p[{img_scaled}]"
+            f"setsar=1,format=yuv420p[{img_scaled}]"
         )
         filters.append(
             f"[{current}][{c_scaled}]overlay="
