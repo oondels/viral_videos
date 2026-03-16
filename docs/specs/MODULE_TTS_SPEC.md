@@ -35,8 +35,9 @@ Each manifest item must contain:
 
 - The module must generate exactly one audio file per dialogue item.
 - File naming must preserve line order and speaker id.
-- All persisted segment files must be normalized to mono WAV.
-- All persisted segment files must share the same sample rate.
+- All persisted segment files must be mono WAV (pcm_s16le, 44100 Hz).
+- TTS providers that return non-WAV formats (e.g. MP3) must convert to WAV via `convert_to_wav()` before persisting the segment. The temporary provider-native file must be cleaned up after conversion.
+- All persisted segment files must share the same sample rate (44100 Hz).
 - `duration_sec` must be measured from the persisted file, not estimated.
 - Manifest order must match dialogue order exactly.
 - Voice mapping resolution must use `config/voices.json` as the canonical runtime source.

@@ -33,6 +33,36 @@ def run_ffmpeg(args: list[str], timeout: int = _FFMPEG_TIMEOUT_SEC) -> None:
         )
 
 
+def convert_to_wav(
+    input_path: Path,
+    output_path: Path,
+    sample_rate: int = 44100,
+    channels: int = 1,
+) -> None:
+    """Convert any audio file to WAV (pcm_s16le).
+
+    Args:
+        input_path: Source audio file (e.g. MP3).
+        output_path: Destination WAV file path.
+        sample_rate: Output sample rate in Hz.
+        channels: Number of audio channels (1 = mono).
+
+    Raises:
+        FFmpegError: if FFmpeg fails.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    run_ffmpeg(
+        [
+            "ffmpeg", "-y",
+            "-i", str(input_path),
+            "-acodec", "pcm_s16le",
+            "-ar", str(sample_rate),
+            "-ac", str(channels),
+            str(output_path),
+        ]
+    )
+
+
 def concat_audio(input_paths: list[Path], output_path: Path) -> None:
     """Concatenate audio files in order using the concat demuxer.
 
