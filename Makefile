@@ -20,24 +20,24 @@ build:
 
 run:
 	@if [ -z "$(INPUT)" ]; then echo "Usage: make run INPUT=inputs/examples/job_001.json"; exit 1; fi
-	docker-compose run --rm app python -m app.main --input $(INPUT)
+	docker compose run --rm app python -m app.main --input $(INPUT)
 
 batch:
 	@if [ -z "$(CSV)" ]; then echo "Usage: make batch CSV=inputs/batch/jobs.csv"; exit 1; fi
-	docker-compose run --rm app python -m app.main --batch $(CSV)
+	docker compose run --rm app python -m app.main --batch $(CSV)
 
 resume:
 	@if [ -z "$(JOB_ID)" ]; then echo "Usage: make resume JOB_ID=job_2026_03_15_935"; exit 1; fi
-	docker-compose run --rm app python -m app.main --resume $(JOB_ID)
+	docker compose run --rm app python -m app.main --resume $(JOB_ID)
 
 test:
-	docker-compose run --rm app pytest
+	docker compose run --rm app pytest
 
 test-unit:
-	docker-compose run --rm app pytest tests/unit/ -v
+	docker compose run --rm app pytest tests/unit/ -v
 
 lint:
-	docker-compose run --rm app ruff check app/
+	docker compose run --rm app ruff check app/
 
 clean:
 	./scripts/cleanup_temp.sh
