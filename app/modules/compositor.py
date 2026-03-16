@@ -36,6 +36,55 @@ def _escape_drawtext(text: str) -> str:
     )
 
 
+def _scale_transition_expr(
+    t_switch: float, dur: float,
+    w_from: int, w_to: int, h_from: int, h_to: int,
+) -> tuple[str, str]:
+    """Return (w_expr, h_expr) for an ease-in-out scale transition.
+
+    The expressions reference FFmpeg's ``t`` variable and require
+    ``eval=frame`` in the ``scale`` filter.  Dimensions are rounded to
+    the nearest even integer for yuv420p compatibility.
+    """
+    def _interp(v_from: int, v_to: int) -> str:
+        return (
+            f"trunc(({v_from}+({v_to}-{v_from})"
+            f"*(1-cos(PI*min(max(t-{t_switch},0),{dur})/{dur}))/2)/2)*2"
+        )
+    return _interp(w_from, w_to), _interp(h_from, h_to)
+
+
+def _anchor_overlay_expr(
+    anchor_x: float, anchor: str,
+    t_switch: float, dur: float,
+    y_from: float, y_to: float,
+    h_from: int, h_to: int,
+) -> tuple[str, str]:
+    """Return (x_expr, y_expr) for an anchored overlay during a transition.
+
+    ``x_expr`` keeps the character's anchor point fixed horizontally.
+    ``y_expr`` smoothly interpolates the vertical center between the
+    starting and ending positions.
+    """
+    ax = int(anchor_x) if anchor_x == int(anchor_x) else anchor_x
+    if anchor == "left":
+        x_expr = str(ax)
+    elif anchor == "right":
+        x_expr = f"{ax}-w"
+    else:  # center
+        x_expr = f"{ax}-w/2"
+
+    cy_from = y_from + h_from / 2
+    cy_to = y_to + h_to / 2
+    if cy_from == cy_to:
+        y_expr = f"{cy_from}-h/2"
+    else:
+        progress = f"(1-cos(PI*min(max(t-{t_switch},0),{dur})/{dur}))/2"
+        y_expr = f"({cy_from}+({cy_to}-{cy_from})*{progress})-h/2"
+
+    return x_expr, y_expr
+
+
 def compose_video(ctx: JobContext) -> Path:
     """Compose all pipeline artifacts into the final MP4.
 
@@ -111,6 +160,21 @@ def compose_video(ctx: JobContext) -> Path:
     char_a_x = abox["x"]   # left side (fixed for char_a)
     char_b_x = ibox["x"]   # right side (fixed for char_b)
 
+    # Transition parameters
+    trans_dur = preset["speaker_transition_duration_sec"]
+    anchor = preset["speaker_anchor"]
+
+    # Fixed anchor position per character (for dynamic overlay during transitions)
+    if anchor == "left":
+        char_a_anchor_x = float(abox["x"])
+        char_b_anchor_x = float(ibox["x"])
+    elif anchor == "right":
+        char_a_anchor_x = float(abox["x"] + abox["w"])
+        char_b_anchor_x = float(ibox["x"] + ibox["w"])
+    else:  # center
+        char_a_anchor_x = abox["x"] + abox["w"] / 2
+        char_b_anchor_x = ibox["x"] + ibox["w"] / 2
+
     # ------------------------------------------------------------------ #
     # Build FFmpeg input list                                              #
     # ------------------------------------------------------------------ #
@@ -134,7 +198,12 @@ def compose_video(ctx: JobContext) -> Path:
         speaker = item["speaker"]
         inactive_id = [c for c in all_speakers if c != speaker][0]
         char = load_character(inactive_id)
-        cmd += ["-loop", "1", "-i", str(char["base_png"])]
+        # itsoffset aligns image timestamps with global time so that
+        # scale eval=frame expressions reference the correct t.
+        cmd += [
+            "-itsoffset", str(item["start_sec"]),
+            "-loop", "1", "-i", str(char["base_png"]),
+        ]
         inactive_img_indices.append(1 + len(timeline) + len(inactive_img_indices))
 
     audio_idx = 1 + len(timeline) + len(timeline)   # after all images
@@ -169,49 +238,104 @@ def compose_video(ctx: JobContext) -> Path:
     # Overlay clips and inactive speaker images per timeline item.
     # Each character occupies a fixed horizontal position: char_a (first
     # alphabetically) always on the left, char_b always on the right.
+    # When the speaker changes, both characters smoothly scale between
+    # active/inactive dimensions using ease-in-out expressions.
     for i, item in enumerate(timeline):
         start = item["start_sec"]
         end = item["end_sec"]
         clip_in = clip_indices[i]
         img_in = inactive_img_indices[i]
         active_id = item["speaker"]
+        is_transition = (
+            i > 0
+            and active_id != timeline[i - 1]["speaker"]
+            and trans_dur > 0
+        )
 
         c_scaled = f"c{i}"
         img_scaled = f"img{i}"
         after_clip = f"bgc{i}"
         after_img = f"bgi{i}"
 
-        # Scale active clip to active box, inactive image to inactive box
-        filters.append(
-            f"[{clip_in}:v]scale={abox['w']}:{abox['h']}:"
-            f"force_original_aspect_ratio=decrease,"
-            f"pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2,"
-            f"setsar=1,format=yuv420p[{c_scaled}]"
-        )
-        filters.append(
-            f"[{img_in}:v]scale={ibox['w']}:{ibox['h']},"
-            f"setsar=1,format=yuv420p[{img_scaled}]"
-        )
-
-        # Fixed position per character: clip goes to the active character's
-        # fixed side, inactive image goes to the other character's fixed side.
+        # Determine which anchor belongs to the clip vs the image
         if active_id == char_a_id:
-            clip_x, clip_y = char_a_x, abox["y"]
-            img_x, img_y = char_b_x, ibox["y"]
+            clip_anchor_x = char_a_anchor_x
+            img_anchor_x = char_b_anchor_x
         else:
-            clip_x, clip_y = char_b_x, abox["y"]
-            img_x, img_y = char_a_x, ibox["y"]
+            clip_anchor_x = char_b_anchor_x
+            img_anchor_x = char_a_anchor_x
 
-        filters.append(
-            f"[{current}][{c_scaled}]overlay="
-            f"x={clip_x}:y={clip_y}:"
-            f"enable='between(t,{start},{end})'[{after_clip}]"
-        )
-        filters.append(
-            f"[{after_clip}][{img_scaled}]overlay="
-            f"x={img_x}:y={img_y}:"
-            f"enable='between(t,{start},{end})'[{after_img}]"
-        )
+        if is_transition:
+            # Active clip: grows from inactive to active dimensions
+            cw, ch = _scale_transition_expr(
+                start, trans_dur,
+                ibox["w"], abox["w"], ibox["h"], abox["h"],
+            )
+            filters.append(
+                f"[{clip_in}:v]scale=w='{cw}':h='{ch}':eval=frame,"
+                f"setsar=1,format=yuv420p[{c_scaled}]"
+            )
+            # Inactive image: shrinks from active to inactive dimensions
+            iw, ih = _scale_transition_expr(
+                start, trans_dur,
+                abox["w"], ibox["w"], abox["h"], ibox["h"],
+            )
+            filters.append(
+                f"[{img_in}:v]scale=w='{iw}':h='{ih}':eval=frame,"
+                f"setsar=1,format=yuv420p[{img_scaled}]"
+            )
+
+            # Dynamic overlay positions to maintain anchor
+            cx_expr, cy_expr = _anchor_overlay_expr(
+                clip_anchor_x, anchor, start, trans_dur,
+                ibox["y"], abox["y"], ibox["h"], abox["h"],
+            )
+            ix_expr, iy_expr = _anchor_overlay_expr(
+                img_anchor_x, anchor, start, trans_dur,
+                abox["y"], ibox["y"], abox["h"], ibox["h"],
+            )
+
+            filters.append(
+                f"[{current}][{c_scaled}]overlay="
+                f"x='{cx_expr}':y='{cy_expr}':"
+                f"eval=frame:enable='between(t,{start},{end})'[{after_clip}]"
+            )
+            filters.append(
+                f"[{after_clip}][{img_scaled}]overlay="
+                f"x='{ix_expr}':y='{iy_expr}':"
+                f"eval=frame:enable='between(t,{start},{end})'[{after_img}]"
+            )
+        else:
+            # No transition — static dimensions and positions
+            filters.append(
+                f"[{clip_in}:v]scale={abox['w']}:{abox['h']}:"
+                f"force_original_aspect_ratio=decrease,"
+                f"pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2,"
+                f"setsar=1,format=yuv420p[{c_scaled}]"
+            )
+            filters.append(
+                f"[{img_in}:v]scale={ibox['w']}:{ibox['h']},"
+                f"setsar=1,format=yuv420p[{img_scaled}]"
+            )
+
+            if active_id == char_a_id:
+                clip_x, clip_y = char_a_x, abox["y"]
+                img_x, img_y = char_b_x, ibox["y"]
+            else:
+                clip_x, clip_y = char_b_x, abox["y"]
+                img_x, img_y = char_a_x, ibox["y"]
+
+            filters.append(
+                f"[{current}][{c_scaled}]overlay="
+                f"x={clip_x}:y={clip_y}:"
+                f"enable='between(t,{start},{end})'[{after_clip}]"
+            )
+            filters.append(
+                f"[{after_clip}][{img_scaled}]overlay="
+                f"x={img_x}:y={img_y}:"
+                f"enable='between(t,{start},{end})'[{after_img}]"
+            )
+
         current = after_img
 
     # Burn subtitles

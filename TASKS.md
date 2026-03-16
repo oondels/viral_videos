@@ -272,7 +272,7 @@ inputs:
 
 * id: T-005
   title: Implementar animação de escala suave (ease-in-out) na troca de speaker
-  status: false
+  status: true
   type: code
   depends_on: [T-004]
   read_first:

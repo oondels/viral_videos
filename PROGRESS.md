@@ -72,3 +72,18 @@ Every loop iteration must:
 - Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; `pytest tests/ -q` → 233 passed; `ruff check app/modules/compositor.py` → sem erros.
 - Docs updated: none.
 - Notes for next task: T-005 deve adicionar a animação de escala suave (ease-in-out) usando `scale` com `eval=frame` e expressões de tempo `t` conforme decisão do spike T-001. As posições horizontais fixas por personagem já estão implementadas — a animação deve interpolar apenas w/h (escala), mantendo x fixo por personagem. A troca de speaker ainda é um corte seco de escala neste ponto.
+
+## 2026-03-16 - T-005 - Implementar animação de escala suave (ease-in-out) na troca de speaker
+
+- Outcome: animação de escala suave implementada. Quando o speaker muda, ambos os personagens animam suavemente entre tamanhos ativo/inativo usando a abordagem do spike T-001: `scale` com `eval=frame` e expressões de tempo `t` com curva ease-in-out `(1 - cos(PI * clip(t - t_switch, 0, D) / D)) / 2`. Overlay usa `eval=frame` com posição x dinâmica para manter anchor fixo durante animação. Dimensões garantidas pares via `trunc(x/2)*2`.
+- Files changed: app/modules/compositor.py, TASKS.md, PROGRESS.md.
+- Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; `pytest tests/ -q` → 233 passed; `ruff check app/` → sem erros.
+- Docs updated: none.
+- Implementation details:
+  - Duas funções helper adicionadas: `_scale_transition_expr()` (gera expressões FFmpeg de escala) e `_anchor_overlay_expr()` (gera expressões de posição com anchor).
+  - `-itsoffset` adicionado aos inputs de imagem inativa para alinhar timestamps com tempo global.
+  - Segmentos sem transição mantêm o path estático (sem `eval=frame`) para performance.
+  - Suporte a `speaker_anchor` em 3 modos: `left`, `center`, `right`.
+  - `speaker_transition_duration_sec` lido do preset e usado nas expressões.
+  - Guard `trans_dur > 0` previne divisão por zero se duração for 0.
+- Notes for next task: T-006 deve incluir `speaker_transition_duration_sec` no `render_metadata.json`. A lógica de transição está completa — T-006 é apenas metadata.
