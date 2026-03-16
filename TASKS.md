@@ -363,7 +363,7 @@ inputs:
 
 * id: T-027
   title: Implementar modo --resume para retomar jobs a partir de artefatos existentes
-  status: false
+  status: true
   type: code
   depends_on: [T-026]
   read_first:

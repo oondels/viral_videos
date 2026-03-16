@@ -238,3 +238,11 @@ Every loop iteration must:
 - Validations: `pytest tests/ -q` → 223 passed; nenhuma regressão nos testes de duração, dimensão, metadados e falhas do compositor.
 - Docs updated: none.
 - Notes for next task: T-027 (modo --resume) é a próxima task. As três causas raiz estavam em compose_video(): (1) SAR 10240:10239 corrigido com setsar=1 no scale de cada clip; (2) áudio 22050 Hz mono corrigido com -ar 44100 -ac 2; (3) bitrate ~4 Mbps corrigido com -preset fast -crf 28 reduzindo para ~1.5–2 Mbps.
+
+## 2026-03-15 - T-027 - Implementar modo --resume
+
+- Outcome: modo --resume implementado em três camadas; stages com artefatos presentes emitem stage_skipped e são puladas; 10 novos testes passando; 233 testes totais verdes.
+- Files changed: app/services/file_service.py (import json adicionado; init_workspace() serializa ctx.job.model_dump() para job_input.json no root do workspace — idempotente), app/pipeline.py (resume_pipeline() adicionada após run_pipeline(); lê job_input.json, reconstrói ValidatedJob, verifica artefatos canônicos por stage, emite stage_skipped para stages com artefatos presentes, executa stages ausentes normalmente; finalize_job sempre executado), app/main.py (--resume JOB_ID adicionado ao mutually_exclusive_group; branch args.resume chama resume_pipeline()), tests/integration/test_resume.py (criado, 10 testes), TASKS.md (T-027 status → true).
+- Validations: `pytest tests/integration/test_resume.py -v` → 10 passed; `pytest tests/ -q` → 233 passed; verificado que stage_skipped é emitido para todas as stages com artefatos; compose_video reexecutada quando final.mp4 deletado; PipelineError levantada quando job_input.json ausente ou malformado.
+- Docs updated: none.
+- Notes for next task: Todos os 27 tasks estão completos. Contratos canônicos de resume: job_input.json em ctx.root()/"job_input.json"; evento stage_skipped com message "Skipped {stage} — artifacts present"; artefato canônico de cada stage: write_script→script_json+dialogue_json, generate_tts→audio_manifest, build_timeline→timeline_json+master_audio, generate_lipsync→todos clip_file no timeline.json, prepare_background→prepared_background, generate_subtitles→subtitles_srt, compose_video→final_mp4.

@@ -11,6 +11,7 @@ def parse_args() -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--input", metavar="FILE", help="JSON job file")
     group.add_argument("--batch", metavar="FILE", help="CSV file with multiple jobs")
+    group.add_argument("--resume", metavar="JOB_ID", help="Resume an existing job by job_id")
     return parser.parse_args()
 
 
@@ -74,7 +75,23 @@ def main() -> None:
             sys.exit(1)
         return
 
-    logger.info("Nenhum argumento fornecido. Use --input ou --batch.")
+    if args.resume:
+        from app.pipeline import PipelineError, resume_pipeline
+
+        try:
+            llm, tts, lipsync = _build_providers()
+        except Exception as exc:
+            logger.error("Provider setup failed: %s", exc)
+            sys.exit(1)
+
+        try:
+            resume_pipeline(args.resume, llm, tts, lipsync)
+        except PipelineError as exc:
+            logger.error("Pipeline failed: %s", exc)
+            sys.exit(1)
+        return
+
+    logger.info("Nenhum argumento fornecido. Use --input, --batch ou --resume.")
     logger.info("Exemplo: python -m app.main --input inputs/examples/job_001.json")
 
 

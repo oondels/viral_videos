@@ -194,3 +194,180 @@ def run_pipeline(
         raise PipelineError(f"Unexpected pipeline error: {exc}") from exc
 
     return ctx
+
+
+def resume_pipeline(
+    job_id: str,
+    llm_provider: ScriptGenerator,
+    tts_provider: TTSProvider,
+    lipsync_engine: LipSyncEngine,
+) -> JobContext:
+    """Resume a previously started job from existing on-disk artifacts.
+
+    Reads job_input.json from output/jobs/<job_id>/, reconstructs the
+    ValidatedJob, and executes only the stages whose canonical output
+    artifacts are absent.  Stages whose artifacts already exist emit a
+    stage_skipped event and are not re-executed.
+
+    Args:
+        job_id: The job identifier (e.g. "job_2026_03_15_935").
+        llm_provider: ScriptGenerator implementation.
+        tts_provider: TTSProvider implementation.
+        lipsync_engine: LipSyncEngine implementation.
+
+    Returns:
+        The JobContext for the resumed job.
+
+    Raises:
+        PipelineError: if job_input.json is missing, the job cannot be
+            reconstructed, or any executed stage fails.
+    """
+    from app.core.contracts import ValidatedJob
+
+    job_input_path = Path("output") / "jobs" / job_id / "job_input.json"
+    if not job_input_path.exists():
+        raise PipelineError(
+            f"resume: job_input.json not found at {job_input_path}. "
+            "Use --input with the original JSON file instead."
+        )
+
+    try:
+        job = ValidatedJob.model_validate(
+            json.loads(job_input_path.read_text(encoding="utf-8"))
+        )
+    except Exception as exc:
+        raise PipelineError(
+            f"resume: failed to reconstruct job from job_input.json: {exc}"
+        ) from exc
+
+    ctx = JobContext(job=job)
+
+    try:
+        init_workspace(ctx)
+    except Exception as exc:
+        raise PipelineError(f"init_job_workspace: {exc}") from exc
+
+    job_log = JobLogger(job.job_id, ctx.job_log())
+
+    def _run(stage: str, fn: Any, *args: Any, **kwargs: Any) -> Any:
+        job_log.log(stage, "stage_started", f"Starting {stage}")
+        t0 = _now_ms()
+        try:
+            result = fn(*args, **kwargs)
+            elapsed = _now_ms() - t0
+            job_log.log(stage, "stage_completed", f"Completed {stage}", duration_ms=elapsed)
+            return result
+        except Exception as exc:
+            elapsed = _now_ms() - t0
+            job_log.log(
+                stage, "stage_failed", f"Failed {stage}",
+                duration_ms=elapsed,
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
+            raise PipelineError(f"{stage}: {exc}") from exc
+
+    def _run_with_retry(
+        stage: str,
+        retryable: tuple[type[Exception], ...],
+        fn: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        def _call() -> Any:
+            return fn(*args, **kwargs)
+
+        job_log.log(stage, "stage_started", f"Starting {stage}")
+        t0 = _now_ms()
+        try:
+            result = retry(
+                _call,
+                retryable=retryable,
+                max_attempts=config.provider_max_retries,
+            )
+            elapsed = _now_ms() - t0
+            job_log.log(stage, "stage_completed", f"Completed {stage}", duration_ms=elapsed)
+            return result
+        except Exception as exc:
+            elapsed = _now_ms() - t0
+            job_log.log(
+                stage, "stage_failed", f"Failed {stage}",
+                duration_ms=elapsed,
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
+            raise PipelineError(f"{stage}: {exc}") from exc
+
+    def _skip(stage: str) -> None:
+        job_log.log(stage, "stage_skipped", f"Skipped {stage} — artifacts present")
+
+    def _all_clips_exist() -> bool:
+        if not ctx.timeline_json().exists():
+            return False
+        timeline: list[dict[str, Any]] = json.loads(
+            ctx.timeline_json().read_text(encoding="utf-8")
+        )
+        return all(
+            item.get("clip_file") and Path(item["clip_file"]).exists()
+            for item in timeline
+        )
+
+    try:
+        voice_mapping = load_voice_mapping()
+
+        if ctx.script_json().exists() and ctx.dialogue_json().exists():
+            _skip("write_script")
+        else:
+            _run_with_retry(
+                "write_script", (ScriptGenerationError,),
+                write_script, ctx, llm_provider,
+            )
+
+        if ctx.audio_manifest().exists():
+            _skip("generate_tts")
+        else:
+            _run_with_retry(
+                "generate_tts", (TTSError,),
+                generate_tts, ctx, tts_provider, voice_mapping,
+            )
+
+        if ctx.timeline_json().exists() and ctx.master_audio().exists():
+            _skip("build_timeline")
+        else:
+            _run("build_timeline", build_timeline, ctx)
+
+        if _all_clips_exist():
+            _skip("generate_lipsync")
+        else:
+            _run_with_retry(
+                "generate_lipsync", (LipSyncError,),
+                generate_lipsync, ctx, lipsync_engine,
+            )
+
+        if ctx.prepared_background().exists():
+            _skip("prepare_background")
+        else:
+            timeline = json.loads(ctx.timeline_json().read_text(encoding="utf-8"))
+            total_duration = timeline[-1]["end_sec"]
+            _run("prepare_background", prepare_background, ctx, total_duration)
+
+        if ctx.subtitles_srt().exists():
+            _skip("generate_subtitles")
+        else:
+            _run("generate_subtitles", generate_subtitles, ctx)
+
+        if ctx.final_mp4().exists():
+            _skip("compose_video")
+        else:
+            _run("compose_video", compose_video, ctx)
+
+        job_log.log("finalize_job", "stage_started", "Starting finalize_job")
+        job_log.log("finalize_job", "stage_completed", "Pipeline completed successfully")
+        _process_logger.info("Resume completed: %s → %s", job.job_id, ctx.final_mp4())
+
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError(f"Unexpected pipeline error: {exc}") from exc
+
+    return ctx
