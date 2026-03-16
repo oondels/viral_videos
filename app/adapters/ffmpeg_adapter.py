@@ -89,6 +89,8 @@ def normalize_audio(input_path: Path, output_path: Path) -> None:
                 "ffmpeg", "-y",
                 "-i", str(input_path),
                 "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                "-ar", "44100",
+                "-ac", "2",
                 str(tmp_path),
             ]
         )
@@ -127,7 +129,7 @@ def scale_and_trim_video(
 
     scale_filter = (
         f"scale={width}:{height}:force_original_aspect_ratio=increase,"
-        f"crop={width}:{height}"
+        f"crop={width}:{height},setsar=1"
     )
 
     cmd = ["ffmpeg", "-y"]

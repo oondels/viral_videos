@@ -8,7 +8,7 @@ from typing import Any
 from app.adapters.lipsync_engine_adapter import LipSyncEngine, LipSyncError
 from app.core.job_context import JobContext
 from app.services.asset_service import load_character
-from app.utils.ffprobe_utils import get_audio_duration
+from app.utils.ffprobe_utils import get_media_duration
 
 _CLIP_DURATION_TOLERANCE_SEC = 0.10
 
@@ -65,7 +65,7 @@ def generate_lipsync(
             )
 
         audio_duration = item["duration_sec"]
-        clip_duration = get_audio_duration(clip_path)
+        clip_duration = get_media_duration(clip_path)
         if abs(clip_duration - audio_duration) > _CLIP_DURATION_TOLERANCE_SEC:
             raise RuntimeError(
                 f"Clip duration ({clip_duration:.4f}s) for item {index} exceeds "

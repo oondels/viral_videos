@@ -8,27 +8,29 @@ import subprocess
 from pathlib import Path
 
 from app.adapters.lipsync_engine_adapter import LipSyncEngine, LipSyncError
+from app.utils.ffprobe_utils import get_audio_duration
 
 
 class StaticImageLipSync(LipSyncEngine):
     """Renders the character base.png as a static video matching the audio duration.
 
-    Uses FFmpeg's -loop 1 + -shortest to produce a valid MP4 without any
-    external dependency. The compositor ignores the embedded audio track and
-    uses master_audio.wav as the authoritative source.
+    Uses FFmpeg's -loop 1 with an explicit -t duration to produce a video-only
+    MP4 (no embedded audio track).  The compositor uses master_audio.wav as the
+    authoritative audio source.
     """
 
     def generate(self, image_path: Path, audio_path: Path, output_path: Path) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        duration = get_audio_duration(audio_path)
         result = subprocess.run(
             [
                 "ffmpeg", "-y",
                 "-loop", "1", "-i", str(image_path),
-                "-i", str(audio_path),
+                "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
                 "-c:v", "libx264", "-tune", "stillimage",
-                "-c:a", "aac", "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
-                "-shortest",
+                "-t", str(duration),
+                "-an",
                 str(output_path),
             ],
             capture_output=True,

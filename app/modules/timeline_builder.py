@@ -9,7 +9,9 @@ from app.adapters.ffmpeg_adapter import FFmpegError, concat_audio, normalize_aud
 from app.core.job_context import JobContext
 from app.utils.ffprobe_utils import get_audio_duration
 
-_DURATION_TOLERANCE_SEC = 0.05
+# Tolerance raised to 0.10s to accommodate FFmpeg resampling padding
+# (22050 Hz → 44100 Hz conversion in normalize_audio may add up to ~50 ms).
+_DURATION_TOLERANCE_SEC = 0.10
 
 
 class TimelineError(Exception):
@@ -61,6 +63,8 @@ def build_timeline(ctx: JobContext) -> list[dict[str, Any]]:
     if not master_path.exists():
         raise TimelineError(f"FFmpeg did not write master audio: {master_path}")
 
+    # Read duration AFTER normalize_audio so the measured value reflects the
+    # resampled (44100 Hz stereo) master file, not the raw concatenated output.
     master_duration = get_audio_duration(master_path)
 
     timeline: list[dict[str, Any]] = []

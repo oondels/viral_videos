@@ -177,7 +177,7 @@ inputs:
 
 * id: T-024
   title: Fix silent/quiet audio - diagnose ElevenLabs PCM output and add loudness normalization
-  status: false
+  status: true
   type: code
   depends_on: [T-019]
   read_first:
@@ -242,7 +242,7 @@ inputs:
 
 * id: T-025
   title: Fix subtitle font size - subtitles render too large due to libass PlayResY mismatch
-  status: false
+  status: true
   type: code
   depends_on: [T-014]
   read_first:
@@ -303,7 +303,7 @@ inputs:
 
 * id: T-026
   title: Fix corrupted MP4 output — SAR não-quadrado, áudio 22050Hz mono e bitrate alto
-  status: false
+  status: true
   type: code
   depends_on: [T-025]
   read_first:
@@ -363,7 +363,7 @@ inputs:
 
 * id: T-027
   title: Implementar modo --resume para retomar jobs a partir de artefatos existentes
-  status: false
+  status: true
   type: code
   depends_on: [T-026]
   read_first:
@@ -458,6 +458,108 @@ inputs:
   rollback_notes:
   * Reverter qualquer mudança em run_pipeline() — apenas resume_pipeline() é nova.
   * Reverter se testes de pipeline ou observabilidade existentes quebrem.
+
+### T-028: Adicionar `-movflags +faststart` ao compositor para MP4 publicável
+- **id:** T-028
+- **status:** true
+- **depends_on:** [T-027]
+- **read_first:** ["docs/specs/MODULE_COMPOSITOR_SPEC.md", "app/modules/compositor.py"]
+- **description:** O `moov atom` do MP4 gerado está posicionado no fim do arquivo porque o comando FFmpeg final em `compose_video()` não inclui `-movflags +faststart`. Sem essa flag, players progressivos (VS Code, WhatsApp, Google Drive preview) não conseguem parsear o container em streaming, causando os sintomas: VS Code sem áudio, erro ao compartilhar. O VLC funciona porque faz seek reverso para encontrar o `moov`, mas é o único caso. A correção é cirúrgica: inserir `"-movflags", "+faststart"` na lista `cmd` em `compositor.py`, antes do path de saída. Nenhum outro arquivo deve ser tocado.
+- **acceptance:**
+  - `ffprobe -v quiet -print_format json -show_format render/final.mp4` mostra que o `moov atom` está no início (campo `format_tags` não contém erros de container).
+  - O arquivo pode ser reproduzido no VS Code sem seek e sem erro de áudio ausente.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-029: Forçar `-ar 44100 -ac 2` em `normalize_audio()` para garantir master em 44100 Hz estéreo
+- **id:** T-029
+- **status:** true
+- **depends_on:** [T-028]
+- **read_first:** ["app/adapters/ffmpeg_adapter.py", "app/modules/timeline_builder.py", "docs/specs/MODULE_TTS_SPEC.md"]
+- **description:** A função `normalize_audio()` em `ffmpeg_adapter.py` aplica `loudnorm` mas não força sample rate nem canais. O ElevenLabs TTS produz WAV a 22050 Hz mono. O `master_audio.wav` chega ao compositor a 22050 Hz mono e o resampling on-the-fly no compositor (flags `-ar 44100 -ac 2` já presentes) pode produzir PTS desalinhados com o stream de vídeo. A correção é adicionar `-ar 44100 -ac 2` ao comando FFmpeg dentro de `normalize_audio()`, antes do path de saída temporária. Isso garante que o `master_audio.wav` já está a 44100 Hz estéreo antes de entrar no compositor, tornando o resampling on-the-fly desnecessário. A task do `concat_audio()` (SEV-005) é coberta por esta mesma mudança: com `normalize_audio` forçando 44100 Hz, o mismatch de sample rate no concat não produz mais master incorreto.
+- **acceptance:**
+  - `ffprobe -show_entries stream=sample_rate,channels output/jobs/<job>/audio/master/master_audio.wav` mostra `sample_rate=44100` e `channels=2` após execução do pipeline.
+  - `ffmpeg -i master_audio.wav -af volumedetect -f null /dev/null` reporta `max_volume >= -3 dB`.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-030: Remover áudio embutido dos clips em `StaticImageLipSync` — usar `-t <duration> -an`
+- **id:** T-030
+- **status:** true
+- **depends_on:** [T-029]
+- **read_first:** ["app/adapters/static_lipsync_adapter.py", "app/adapters/lipsync_engine_adapter.py", "app/modules/lipsync.py", "docs/specs/MODULE_LIPSYNC_SPEC.md"]
+- **description:** O `StaticImageLipSync.generate()` embute faixa de áudio AAC nos clips via `-c:a aac -b:a 192k` e usa `-shortest` para sincronizar. Isso viola o contrato da `LipSyncEngine` ABC que proíbe áudio autoritativo nos clips (o compositor usa o `master_audio.wav`). O problema prático: os PTS do stream de vídeo do clip são calculados em relação ao áudio interno do clip; quando o compositor usa `-itsoffset` para posicionar o clip e descarta o áudio, os PTS podem não alinhar com o master, produzindo frames pretos nos intervalos. A correção: substituir `-c:a aac -b:a 192k -shortest` por `-t <duration> -an`, onde `<duration>` é medida com `get_audio_duration(audio_path)` antes de chamar o FFmpeg. Adicionar o import necessário em `static_lipsync_adapter.py`. A função `generate_lipsync()` em `lipsync.py` chama `get_audio_duration(clip_path)` para validar duração do clip — como o clip deixa de ter stream de áudio, a validação de duração deve usar `get_media_duration(clip_path)` em vez de `get_audio_duration(clip_path)`.
+- **acceptance:**
+  - `ffprobe -show_entries stream=codec_type <clip>.mp4` não mostra stream de áudio nos clips gerados.
+  - A duração do clip está dentro de 0.10s da duração do áudio fonte correspondente.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-031: Adicionar `setsar=1` em `scale_and_trim_video()` para corrigir SAR do background em disco
+- **id:** T-031
+- **status:** true
+- **depends_on:** [T-030]
+- **read_first:** ["app/adapters/ffmpeg_adapter.py", "docs/specs/MODULE_BACKGROUND_SELECTOR_SPEC.md"]
+- **description:** A função `scale_and_trim_video()` em `ffmpeg_adapter.py` usa `scale=W:H:force_original_aspect_ratio=increase,crop=W:H` sem `setsar=1`. Se o vídeo de background de origem tiver SAR diferente de 1:1 (comum em vídeos do YouTube/TikTok), o `prepared_background.mp4` salvo em disco terá SAR incorreto. O compositor aplica `setsar=1` no `filter_complex`, mitigando o impacto no vídeo final — mas o artefato em disco fica com SAR errado, enganando inspeções manuais e o modo `--resume` (que pula `prepare_background` se o arquivo existir, entregando SAR incorreto ao compositor). A correção é acrescentar `,setsar=1` ao `scale_filter` em `scale_and_trim_video()`.
+- **acceptance:**
+  - `ffprobe -show_entries stream=sample_aspect_ratio <prepared_background>.mp4` reporta `1:1`.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-032: Recalcular `master_duration` pós-normalização em `build_timeline()`
+- **id:** T-032
+- **status:** true
+- **depends_on:** [T-031]
+- **read_first:** ["app/modules/timeline_builder.py", "app/adapters/ffmpeg_adapter.py", "docs/specs/MODULE_TIMELINE_BUILDER_SPEC.md"]
+- **description:** Em `build_timeline()`, após a adição de `-ar 44100 -ac 2` em `normalize_audio()` (T-029), o resampling de 22050 Hz para 44100 Hz pode alterar a duração do `master_audio.wav` em mais de 50ms devido ao padding de frames no resampler. A validação `abs(final_end - master_duration) > _DURATION_TOLERANCE_SEC` usa `master_duration` lido após `normalize_audio` (linha 64, depois da linha 57), então a estrutura atual já lê o valor correto pós-normalização. A task consiste em: (1) verificar via execução real se a tolerância de 0.05s é violada após T-029; (2) se for, aumentar `_DURATION_TOLERANCE_SEC` de 0.05 para 0.10 em `timeline_builder.py` e documentar o motivo; (3) adicionar um comentário explícito ao lado da chamada `get_audio_duration(master_path)` indicando que deve ser lido sempre após `normalize_audio` para refletir o arquivo masterizado real.
+- **acceptance:**
+  - Pipeline completo executa sem `TimelineError` de mismatch de duração com o resampling ativo (T-029).
+  - Comentário no código explica por que `master_duration` é lido após `normalize_audio`.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-033: Forçar `format=yuv420p` nos clips do compositor e garantir conversão no `StaticImageLipSync`
+- **id:** T-033
+- **status:** true
+- **depends_on:** [T-032]
+- **read_first:** ["app/adapters/static_lipsync_adapter.py", "app/modules/compositor.py", "docs/specs/MODULE_COMPOSITOR_SPEC.md"]
+- **description:** Se a `base.png` do personagem for RGBA (canal alpha), o FFmpeg pode produzir um clip em formato de pixel diferente de `yuv420p` ou com range full (pc) em vez de limited (tv), gerando artefatos de cor ou recusa do encoder no compositor. O `static_lipsync_adapter.py` já inclui `-pix_fmt yuv420p`, mas não garante conversão explícita do espaço de cor da imagem de entrada. O compositor usa `scale=W:H,setsar=1` mas não adiciona `format=yuv420p` ao filtro de escala de cada clip. A correção é dupla: (1) em `static_lipsync_adapter.py`, adicionar `-vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"` antes de `-c:v libx264` para garantir dimensões pares e conversão de espaço; (2) no `compositor.py`, no filtro de escala de cada clip, alterar `scale={abox['w']}:{abox['h']},setsar=1` para `scale={abox['w']}:{abox['h']},setsar=1,format=yuv420p`.
+- **acceptance:**
+  - `ffprobe -show_entries stream=pix_fmt <clip>.mp4` mostra `yuv420p` em todos os clips gerados.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-034: Corrigir escala do clip no compositor para preservar proporção e evitar distorção do personagem
+- **id:** T-034
+- **status:** true
+- **depends_on:** [T-033]
+- **read_first:** ["app/modules/compositor.py", "docs/specs/MODULE_COMPOSITOR_SPEC.md", "assets/presets/shorts_default.json"]
+- **description:** O `StaticImageLipSync` gera clips com as dimensões da `base.png` de origem, que podem ter proporção diferente da `abox` (active speaker box) definida no preset. O compositor usa `scale={abox['w']}:{abox['h']}` sem `force_original_aspect_ratio`, o que distorce o personagem se as proporções diferirem. Dimensões ímpares na imagem de origem também causam erros de encode no libx264 para `yuv420p`. A correção é substituir o filtro de escala do clip ativo no compositor por `scale={abox['w']}:{abox['h']}:force_original_aspect_ratio=decrease,pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p`. Isso mantém a proporção do personagem, centraliza com padding transparente (preto), força SAR 1:1 e formato yuv420p. O filtro `format=yuv420p` de T-033 já está incluído aqui, então remover o duplicado adicionado em T-033 neste mesmo filtro.
+- **acceptance:**
+  - Personagem no vídeo final não está distorcido horizontalmente ou verticalmente.
+  - `ffprobe -show_entries stream=width,height <clip>.mp4` mostra dimensões pares.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
+
+### T-035: Renomear `get_audio_duration` para `get_media_duration` na validação de clips em `lipsync.py`
+- **id:** T-035
+- **status:** true
+- **depends_on:** [T-034]
+- **read_first:** ["app/modules/lipsync.py", "app/utils/ffprobe_utils.py"]
+- **description:** Em `lipsync.py` linha 68, `get_audio_duration(clip_path)` é chamado para medir a duração de um arquivo MP4 de vídeo. A função delega para `get_media_duration()` internamente, mas o nome `get_audio_duration` é semanticamente incorreto para um arquivo de vídeo e pode mascarar bugs em implementações reais de lipsync onde vídeo e áudio têm durações diferentes. Com T-030, os clips deixam de ter stream de áudio — chamar `get_audio_duration` num arquivo sem stream de áudio pode retornar duração incorreta dependendo da implementação de `ffprobe_utils`. A correção é: (1) verificar a implementação de `get_audio_duration` e `get_media_duration` em `ffprobe_utils.py`; (2) substituir `get_audio_duration(clip_path)` por `get_media_duration(clip_path)` em `lipsync.py`; (3) remover o import de `get_audio_duration` se não for mais usado no módulo.
+- **acceptance:**
+  - `lipsync.py` não importa nem usa `get_audio_duration`.
+  - A validação de duração do clip ainda funciona e rejeita clips com duração fora da tolerância de 0.10s.
+  - `pytest tests/ -q` passa sem regressões.
+
+---
 
 ## GLOBAL_CHECKS
 

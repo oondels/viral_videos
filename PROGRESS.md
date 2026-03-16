@@ -239,6 +239,27 @@ Every loop iteration must:
 - Docs updated: none.
 - Notes for next task: T-027 (modo --resume) é a próxima task. As três causas raiz estavam em compose_video(): (1) SAR 10240:10239 corrigido com setsar=1 no scale de cada clip; (2) áudio 22050 Hz mono corrigido com -ar 44100 -ac 2; (3) bitrate ~4 Mbps corrigido com -preset fast -crf 28 reduzindo para ~1.5–2 Mbps.
 
+## 2026-03-16 - T-028 a T-035 - Correções de qualidade do MP4 e pipeline
+
+- Outcome: oito tasks de correção aplicadas em sequência; todos os 233 testes passam.
+- Files changed:
+  - app/modules/compositor.py (T-028: `-movflags +faststart`; T-033/T-034: escala com `force_original_aspect_ratio=decrease`, `pad`, `setsar=1`, `format=yuv420p` nos clips)
+  - app/adapters/ffmpeg_adapter.py (T-029: `-ar 44100 -ac 2` em `normalize_audio()`; T-031: `setsar=1` em `scale_and_trim_video()`)
+  - app/adapters/static_lipsync_adapter.py (T-030: removido áudio embutido; uso de `-t <duration> -an`; `-vf scale+format=yuv420p` adicionado)
+  - app/modules/lipsync.py (T-030/T-035: `get_audio_duration` → `get_media_duration` na validação do clip)
+  - app/modules/timeline_builder.py (T-032: `_DURATION_TOLERANCE_SEC` elevado a 0.10s; comentário sobre leitura pós-normalização)
+  - TASKS.md (T-028–T-035 status → true)
+- Validations: `pytest tests/ -q` → 233 passed.
+- Docs updated: none.
+- Notes for next task: Todas as tasks T-028 a T-035 concluídas. Correções aplicadas:
+  (1) `+faststart` garante moov atom no início — VS Code, WhatsApp e Google Drive passam a aceitar o arquivo.
+  (2) `normalize_audio` agora produz master a 44100 Hz estéreo — PTS alinhados com o vídeo.
+  (3) Clips sem áudio embutido — PTS de vídeo não mais referenciados a um stream de áudio interno.
+  (4) `setsar=1` no background em disco — mode `--resume` não entrega SAR incorreto.
+  (5) Tolerância de duração 0.05 → 0.10s — acomoda padding do resampler.
+  (6) `format=yuv420p` e `force_original_aspect_ratio` nos clips — sem distorção de personagem e sem artefatos de cor.
+  (7) `get_media_duration` semânticamente correto para arquivos de vídeo sem stream de áudio.
+
 ## 2026-03-15 - T-027 - Implementar modo --resume
 
 - Outcome: modo --resume implementado em três camadas; stages com artefatos presentes emitem stage_skipped e são puladas; 10 novos testes passando; 233 testes totais verdes.

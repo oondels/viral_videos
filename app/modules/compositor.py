@@ -173,10 +173,14 @@ def compose_video(ctx: JobContext) -> Path:
         after_img = f"bgi{i}"
 
         filters.append(
-            f"[{clip_in}:v]scale={abox['w']}:{abox['h']},setsar=1[{c_scaled}]"
+            f"[{clip_in}:v]scale={abox['w']}:{abox['h']}:"
+            f"force_original_aspect_ratio=decrease,"
+            f"pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2,"
+            f"setsar=1,format=yuv420p[{c_scaled}]"
         )
         filters.append(
-            f"[{img_in}:v]scale={ibox['w']}:{ibox['h']}[{img_scaled}]"
+            f"[{img_in}:v]scale={ibox['w']}:{ibox['h']},"
+            f"format=yuv420p[{img_scaled}]"
         )
         filters.append(
             f"[{current}][{c_scaled}]overlay="
@@ -236,6 +240,7 @@ def compose_video(ctx: JobContext) -> Path:
         "-c:a", "aac",
         "-ar", "44100",
         "-ac", "2",
+        "-movflags", "+faststart",
         "-t", str(total_duration),
         str(final),
     ]
