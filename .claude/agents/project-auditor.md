@@ -1,7 +1,7 @@
 ---
 name: project-auditor
 description: "Use this agent to audit the viral_videos project, diagnose bugs, check spec conformance, find doc↔code inconsistencies, review test coverage, or get a prioritized improvement roadmap. Does NOT write code — diagnoses, classifies, and recommends.\n\nTriggers: 'audite o projeto', 'audit', 'what's wrong with module X', 'why does pipeline fail', 'what can I improve', 'check spec conformance', 'test coverage', pasted error logs."
-model: sonnet
+model: opus
 color: green
 memory: project
 ---
