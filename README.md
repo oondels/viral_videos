@@ -92,10 +92,21 @@ Use `background_style: "auto"` no input para seleção automática entre as cate
 docker build -t viral-videos .
 ```
 
+### Variáveis de ambiente do host
+
+O container precisa rodar com o mesmo usuário do host para que os arquivos de saída tenham a permissão correta (necessário para players Snap/Flatpak como mpv e VLC):
+
+```bash
+export UID=$(id -u)
+export GID=$(id -g)
+```
+
+Adicione essas linhas ao seu `~/.bashrc` ou `~/.zshrc` para não precisar repetir a cada sessão.
+
 ### Job único (`--input`)
 
 ```bash
-docker-compose run --rm app python -m app.main --input inputs/examples/job_001.json
+docker compose run --rm app python -m app.main --input inputs/examples/job_001.json
 ```
 
 ### Batch (`--batch`)
@@ -103,7 +114,7 @@ docker-compose run --rm app python -m app.main --input inputs/examples/job_001.j
 Processa múltiplos jobs sequencialmente a partir de um CSV. Se um job falhar, o batch continua para o próximo e gera um relatório em `output/batch_reports/latest_report.json`.
 
 ```bash
-docker-compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
+docker compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
 ```
 
 ### Retomar um job (`--resume`)
@@ -111,7 +122,7 @@ docker-compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
 Reexecuta um job já existente sem repetir stages cujos artefatos já estão em disco. Útil para regererar apenas o vídeo final ou legendas sem rechamar LLM e TTS.
 
 ```bash
-docker-compose run --rm app python -m app.main --resume <job_id>
+docker compose run --rm app python -m app.main --resume <job_id>
 ```
 
 Exemplo: regenerar apenas o `final.mp4` de um job existente:
@@ -121,7 +132,7 @@ Exemplo: regenerar apenas o `final.mp4` de um job existente:
 rm output/jobs/job_2026_03_15_935/render/final.mp4
 
 # Retomar — só compose_video será executada, o resto é pulado
-docker-compose run --rm app python -m app.main --resume job_2026_03_15_935
+docker compose run --rm app python -m app.main --resume job_2026_03_15_935
 ```
 
 Como funciona:
@@ -138,19 +149,19 @@ Como funciona:
 
 ```bash
 # Todos os testes
-docker-compose run --rm app pytest
+docker compose run --rm app pytest
 
 # Apenas testes unitários
-docker-compose run --rm app pytest tests/unit/ -v
+docker compose run --rm app pytest tests/unit/ -v
 
 # Um módulo específico
-docker-compose run --rm app pytest tests/unit/test_timeline_builder.py -v
+docker compose run --rm app pytest tests/unit/test_timeline_builder.py -v
 ```
 
 ### Linting
 
 ```bash
-docker-compose run --rm app ruff check app/
+docker compose run --rm app ruff check app/
 ```
 
 ### Makefile (atalhos)

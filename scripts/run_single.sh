@@ -10,4 +10,4 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
-docker-compose run --rm app python -m app.main --input "$1"
+docker compose run --rm app python -m app.main --input "$1"

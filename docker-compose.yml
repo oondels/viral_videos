@@ -2,6 +2,7 @@ services:
   app:
     build: .
     image: viral-videos
+    user: "${UID}:${GID}"
     env_file: .env
     volumes:
       - ./inputs:/app/inputs

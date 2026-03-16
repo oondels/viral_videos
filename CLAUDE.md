@@ -53,10 +53,10 @@ The intended MVP commands are:
 
 ```bash
 docker build -t viral-videos .
-docker-compose run --rm app python -m app.main --input inputs/examples/job_001.json
-docker-compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
-docker-compose run --rm app pytest
-docker-compose run --rm app ruff check app/
+docker compose run --rm app python -m app.main --input inputs/examples/job_001.json
+docker compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
+docker compose run --rm app pytest
+docker compose run --rm app ruff check app/
 ```
 
 Credentials must stay in `.env`, based on `.env.example`, and must never be embedded in the image.

@@ -7,4 +7,4 @@ set -euo pipefail
 
 CSV_FILE="${1:-inputs/batch/jobs.csv}"
 
-docker-compose run --rm app python -m app.main --batch "$CSV_FILE"
+docker compose run --rm app python -m app.main --batch "$CSV_FILE"
