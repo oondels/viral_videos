@@ -177,7 +177,7 @@ inputs:
 
 * id: T-024
   title: Fix silent/quiet audio - diagnose ElevenLabs PCM output and add loudness normalization
-  status: true
+  status: false
   type: code
   depends_on: [T-019]
   read_first:
@@ -242,7 +242,7 @@ inputs:
 
 * id: T-025
   title: Fix subtitle font size - subtitles render too large due to libass PlayResY mismatch
-  status: true
+  status: false
   type: code
   depends_on: [T-014]
   read_first:
@@ -303,7 +303,7 @@ inputs:
 
 * id: T-026
   title: Fix corrupted MP4 output — SAR não-quadrado, áudio 22050Hz mono e bitrate alto
-  status: true
+  status: false
   type: code
   depends_on: [T-025]
   read_first:
@@ -363,7 +363,7 @@ inputs:
 
 * id: T-027
   title: Implementar modo --resume para retomar jobs a partir de artefatos existentes
-  status: true
+  status: false
   type: code
   depends_on: [T-026]
   read_first:

@@ -1,4 +1,4 @@
-.PHONY: build run batch test lint clean help
+.PHONY: build run batch resume test lint clean help
 
 # Default target
 help:
@@ -7,6 +7,7 @@ help:
 	@echo "  make build             Build the Docker image"
 	@echo "  make run INPUT=<file>  Run single-job pipeline (e.g. INPUT=inputs/examples/job_001.json)"
 	@echo "  make batch CSV=<file>  Run batch pipeline     (e.g. CSV=inputs/batch/jobs.csv)"
+	@echo "  make resume JOB_ID=<id> Resume an existing job (e.g. JOB_ID=job_2026_03_15_935)"
 	@echo "  make test              Run all tests"
 	@echo "  make test-unit         Run unit tests only"
 	@echo "  make lint              Run ruff linter"
@@ -24,6 +25,10 @@ run:
 batch:
 	@if [ -z "$(CSV)" ]; then echo "Usage: make batch CSV=inputs/batch/jobs.csv"; exit 1; fi
 	docker-compose run --rm app python -m app.main --batch $(CSV)
+
+resume:
+	@if [ -z "$(JOB_ID)" ]; then echo "Usage: make resume JOB_ID=job_2026_03_15_935"; exit 1; fi
+	docker-compose run --rm app python -m app.main --resume $(JOB_ID)
 
 test:
 	docker-compose run --rm app pytest

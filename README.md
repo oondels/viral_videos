@@ -92,17 +92,47 @@ Use `background_style: "auto"` no input para seleção automática entre as cate
 docker build -t viral-videos .
 ```
 
-### Job único
+### Job único (`--input`)
 
 ```bash
 docker-compose run --rm app python -m app.main --input inputs/examples/job_001.json
 ```
 
-### Batch
+### Batch (`--batch`)
+
+Processa múltiplos jobs sequencialmente a partir de um CSV. Se um job falhar, o batch continua para o próximo e gera um relatório em `output/batch_reports/latest_report.json`.
 
 ```bash
 docker-compose run --rm app python -m app.main --batch inputs/batch/jobs.csv
 ```
+
+### Retomar um job (`--resume`)
+
+Reexecuta um job já existente sem repetir stages cujos artefatos já estão em disco. Útil para regererar apenas o vídeo final ou legendas sem rechamar LLM e TTS.
+
+```bash
+docker-compose run --rm app python -m app.main --resume <job_id>
+```
+
+Exemplo: regenerar apenas o `final.mp4` de um job existente:
+
+```bash
+# Deletar o artefato que você quer regenerar
+rm output/jobs/job_2026_03_15_935/render/final.mp4
+
+# Retomar — só compose_video será executada, o resto é pulado
+docker-compose run --rm app python -m app.main --resume job_2026_03_15_935
+```
+
+Como funciona:
+
+1. Lê `output/jobs/<job_id>/job_input.json` para reconstruir o job original.
+2. Para cada stage, verifica se os artefatos canônicos de saída já existem em disco.
+3. Stages com artefatos presentes emitem `stage_skipped` no log e são puladas.
+4. Stages com artefatos ausentes executam normalmente.
+5. `finalize_job` sempre executa.
+
+> **Nota:** `--input`, `--batch` e `--resume` são mutuamente exclusivos. Jobs criados antes da implementação do `--resume` não possuem `job_input.json` — nesses casos, use `--input` com o JSON original.
 
 ### Testes
 
@@ -129,6 +159,7 @@ docker-compose run --rm app ruff check app/
 make build                                    # build da imagem
 make run INPUT=inputs/examples/job_001.json   # job único
 make batch CSV=inputs/batch/jobs.csv          # batch
+make resume JOB_ID=job_2026_03_15_935         # retomar job existente
 make test                                     # todos os testes
 make lint                                     # linter
 make clean                                    # limpar temp/
@@ -324,39 +355,7 @@ Para usar um provider diferente, implemente a interface correspondente e injete 
 | `./output/` | `/app/output` | Vídeos e artefatos gerados |
 | `./assets/` | `/app/assets` | Personagens, fundos, fontes, presets |
 | `./config/` | `/app/config` | Mapeamento de vozes e configurações de runtime |
-| `./temp/` | `/app/temp` | Cache temporário |
-
----
-
-## Status de implementação
-
-| # | Módulo / Componente | Status |
-|---|---|---|
-| T-001 | Estrutura de pastas e pacotes Python | ✅ |
-| T-002 | Ambiente Docker (Python 3.11, FFmpeg) | ✅ |
-| T-003 | CLI, config loader, logger JSON Lines | ✅ |
-| T-004 | Validação de input de job (Pydantic v2) | ✅ |
-| T-005 | Job context e paths canônicos | ✅ |
-| T-006 | Exemplos de input e fixtures de teste | ✅ |
-| T-007 | Prompts de roteiro e interface LLM | ✅ |
-| T-008 | Módulo gerador de roteiro | ✅ |
-| T-009 | Interface TTS e mapeamento de vozes | ✅ |
-| T-010 | Geração de áudio por fala + manifest.json | ✅ |
-| T-011 | master_audio.wav + timeline.json | ✅ |
-| T-012 | Geração de subtitles.srt | ✅ |
-| T-013 | Ativos fixos (personagens, fonte, preset) | ✅ |
-| T-014 | Interface lip-sync (adapter boundary) | ✅ |
-| T-015 | Geração de clips por fala (lip-sync) | ✅ |
-| T-016 | Seleção e preparação do fundo | ✅ |
-| T-017 | Adapter centralizado de FFmpeg | ✅ |
-| T-018 | Compositor final (FFmpeg) → final.mp4 | ✅ |
-| T-019 | Pipeline end-to-end de job único | ✅ |
-| T-020 | Logs e metadados canônicos por stage | ✅ |
-| T-021 | Processamento batch sequencial | ✅ |
-| T-022 | Hardening: erros, retries, timeouts | ✅ |
-| T-023 | Documentação operacional final | ✅ |
-
-Consulte `TASKS.md` para o estado detalhado e `PROGRESS.md` para o histórico de progresso.
+| `./temp/` | `/app/temp` | Cache temporário |o.
 
 ---
 
