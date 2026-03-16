@@ -139,8 +139,9 @@ def compose_video(ctx: JobContext) -> Path:
     # ------------------------------------------------------------------ #
     filters: list[str] = []
 
-    # Scale background to canvas
-    filters.append(f"[{bg_idx}:v]scale={W}:{H}[bg_base]")
+    # Scale background to canvas and force SAR 1:1 to prevent non-square pixel
+    # propagation from source clips into the final output.
+    filters.append(f"[{bg_idx}:v]scale={W}:{H},setsar=1[bg_base]")
 
     # Title hook drawtext
     title_text = _escape_drawtext(script.get("title_hook", ""))
@@ -172,7 +173,7 @@ def compose_video(ctx: JobContext) -> Path:
         after_img = f"bgi{i}"
 
         filters.append(
-            f"[{clip_in}:v]scale={abox['w']}:{abox['h']}[{c_scaled}]"
+            f"[{clip_in}:v]scale={abox['w']}:{abox['h']},setsar=1[{c_scaled}]"
         )
         filters.append(
             f"[{img_in}:v]scale={ibox['w']}:{ibox['h']}[{img_scaled}]"
@@ -228,9 +229,13 @@ def compose_video(ctx: JobContext) -> Path:
         "-map", "[final_v]",
         "-map", f"{audio_idx}:a",
         "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "28",
         "-pix_fmt", "yuv420p",
         "-r", str(preset["fps"]),
         "-c:a", "aac",
+        "-ar", "44100",
+        "-ac", "2",
         "-t", str(total_duration),
         str(final),
     ]

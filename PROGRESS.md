@@ -230,3 +230,11 @@ Every loop iteration must:
 - Validations: `pytest tests/ -q` → 223 passed; nenhuma regressão.
 - Docs updated: none (assets/presets/shorts_default.json mantido com font_size=64 — agora significa "64 px visuais na altura nativa do preset").
 - Notes for next task: Todos os 25 tasks estão completos. O MVP está implementado, testado e documentado. Fórmula canônica: libass_font_size = max(1, round(font_size_px × 288 / canvas_height)). _LIBASS_PLAY_RES_Y = 288 é constante local no compositor.
+
+## 2026-03-15 - T-026 - Fix corrupted MP4 output (SAR, áudio e bitrate)
+
+- Outcome: três correções cirúrgicas aplicadas em compose_video() para tornar o output compatível com VLC, WhatsApp, VS Code e Google Drive.
+- Files changed: app/modules/compositor.py (setsar=1 adicionado ao filtro de escala de cada clip ativo; -preset fast e -crf 28 adicionados ao cmd final; -ar 44100 e -ac 2 adicionados ao cmd final para resampling de áudio).
+- Validations: `pytest tests/ -q` → 223 passed; nenhuma regressão nos testes de duração, dimensão, metadados e falhas do compositor.
+- Docs updated: none.
+- Notes for next task: T-027 (modo --resume) é a próxima task. As três causas raiz estavam em compose_video(): (1) SAR 10240:10239 corrigido com setsar=1 no scale de cada clip; (2) áudio 22050 Hz mono corrigido com -ar 44100 -ac 2; (3) bitrate ~4 Mbps corrigido com -preset fast -crf 28 reduzindo para ~1.5–2 Mbps.

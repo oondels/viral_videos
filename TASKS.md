@@ -301,6 +301,164 @@ inputs:
   * Revert if the libass scaling formula changes subtitle positioning
     (x/y) in an unintended way.
 
+* id: T-026
+  title: Fix corrupted MP4 output — SAR não-quadrado, áudio 22050Hz mono e bitrate alto
+  status: true
+  type: code
+  depends_on: [T-025]
+  read_first:
+  * docs/DESIGN_SPEC.md
+  * docs/specs/MODULE_COMPOSITOR_SPEC.md
+  * app/modules/compositor.py
+  goal: >
+    O final.mp4 gerado está inutilizável: VLC exibe tela preta, VS Code reproduce
+    sem áudio, e o arquivo é rejeitado pelo WhatsApp e Google Drive.
+    Diagnóstico via ffprobe do job job_2026_03_15_935 revelou três causas raiz:
+    (1) SAR 10240:10239 em vez de 1:1 — causa tela preta em VLC e rejeição por
+    plataformas; (2) áudio 22050 Hz mono — VS Code não reproduz e WhatsApp rejeita;
+    (3) bitrate ~4 Mbps gera arquivo de ~17 MB, acima do limite de 16 MB do WhatsApp.
+  scope: >
+    app/modules/compositor.py
+  instructions: |
+    Aplicar três correções cirúrgicas em compose_video() em app/modules/compositor.py:
+
+    1. SAR — adicionar setsar=1 nos filtros de escala do filter_complex:
+       - Background: alterar `scale={W}:{H}` para `scale={W}:{H},setsar=1`
+       - Cada clip ativo: alterar `scale={abox['w']}:{abox['h']}` para
+         `scale={abox['w']}:{abox['h']},setsar=1`
+       Isso garante SAR 1:1 no output final, eliminando a tela preta no VLC.
+
+    2. Áudio — adicionar os flags de áudio na lista cmd final (antes do path de saída):
+         "-ar", "44100",
+         "-ac", "2",
+       Isso reamostla o áudio de 22050 Hz mono para 44100 Hz estéreo, padrão
+       esperado por VS Code, WhatsApp e Google Drive.
+
+    3. Bitrate / tamanho — adicionar flags de codec de vídeo na lista cmd final:
+         "-preset", "fast",
+         "-crf", "28",
+       Isso reduz o bitrate de ~4 Mbps para ~1.5–2 Mbps, mantendo qualidade
+       aceitável e produzindo arquivos bem abaixo de 16 MB para vídeos de ~35s.
+
+    NÃO alterar o filter_complex além dos setsar=1.
+    NÃO alterar nenhum outro módulo.
+    NÃO alterar testes existentes além do necessário para refletir os novos flags.
+  acceptance_criteria:
+  * `ffprobe final.mp4` mostra SAR 1:1 (sample_aspect_ratio = "1:1").
+  * `ffprobe final.mp4` mostra stream de áudio com sample_rate=44100, channels=2.
+  * Arquivo final.mp4 tem menos de 16 MB para um job de ~35 segundos.
+  * VLC reproduz o vídeo com imagem e áudio sem tela preta.
+  * `pytest tests/ -q` passa sem regressões.
+  validation_checks:
+  * Rodar `ffprobe -v quiet -print_format json -show_streams render/final.mp4`
+    e confirmar SAR 1:1, audio sample_rate=44100, channels=2.
+  * Confirmar tamanho do arquivo final com `ls -lh render/final.mp4`.
+  * Rodar `pytest tests/ -q` e confirmar que todos os testes passam.
+  stop_conditions:
+  * STOP se os testes de integração do compositor falharem por mudança de contrato
+    de duração ou resolução — investigar antes de prosseguir.
+  rollback_notes:
+  * Reverter qualquer mudança que altere o filter_complex além dos setsar=1.
+  * Reverter se a tolerância de duração (0.10s) for violada pelo novo CRF.
+
+* id: T-027
+  title: Implementar modo --resume para retomar jobs a partir de artefatos existentes
+  status: false
+  type: code
+  depends_on: [T-026]
+  read_first:
+  * docs/DESIGN_SPEC.md
+  * docs/specs/SYSTEM_PIPELINE_ORCHESTRATION_SPEC.md
+  * app/pipeline.py
+  * app/main.py
+  * app/services/file_service.py
+  * app/core/job_context.py
+  * app/core/contracts.py
+  goal: >
+    Permitir reexecutar um job já existente (ex: output/jobs/job_2026_03_15_935)
+    a partir dos artefatos intermediários já gerados, pulando as etapas cujos
+    outputs canônicos já existem em disco e reexecutando apenas as etapas
+    seguintes ou as que falharam. Objetivo: evitar reprocessamento caro (LLM,
+    TTS, lip-sync) quando apenas o compositor ou os subtítulos precisam ser
+    regerados.
+  scope: >
+    app/services/file_service.py,
+    app/pipeline.py,
+    app/main.py
+  instructions: |
+    Implementar o modo de resume em três passos:
+
+    1. PERSISTIR JOB INPUT em init_workspace():
+       Em app/services/file_service.py, após criar os subdirs canônicos, serializar
+       o ValidatedJob para JSON e escrever em output/jobs/<job_id>/job_input.json.
+       Usar ctx.root() / "job_input.json" como path.
+       Formato: ctx.job.model_dump() serializado com json.dumps(indent=2).
+       Idempotente — sobrescrever sempre que init_workspace é chamado.
+
+    2. ADICIONAR resume_pipeline() em app/pipeline.py:
+       Função com assinatura:
+         def resume_pipeline(
+             job_id: str,
+             llm_provider: ScriptGenerator,
+             tts_provider: TTSProvider,
+             lipsync_engine: LipSyncEngine,
+         ) -> JobContext:
+
+       Passos internos de resume_pipeline():
+       a. Ler output/jobs/<job_id>/job_input.json e reconstruir ValidatedJob
+          via ValidatedJob.model_validate(json.loads(...)).
+       b. Criar JobContext(job=validated_job).
+       c. Garantir que o workspace existe via init_workspace(ctx) (idempotente).
+       d. Para cada stage de 3 a 10, antes de executar, verificar se o artefato
+          canônico de saída da stage já existe em disco:
+          - write_script     → ctx.script_json() e ctx.dialogue_json()
+          - generate_tts     → ctx.audio_manifest()
+          - build_timeline   → ctx.timeline_json() e ctx.master_audio()
+          - generate_lipsync → todos os clip_file em timeline.json (lê o JSON e
+                               verifica se cada Path(item["clip_file"]).exists())
+          - prepare_background → ctx.prepared_background()
+          - generate_subtitles → ctx.subtitles_srt()
+          - compose_video    → ctx.final_mp4()
+          Se todos os artefatos de saída de uma stage já existem → logar "skipped"
+          e não chamar a função da stage.
+          Se qualquer artefato de saída estiver ausente → executar a stage normalmente.
+       e. finalize_job: sempre executar (registrar conclusão no log).
+       f. Usar o mesmo helper _run/_run_with_retry e o mesmo JobLogger de run_pipeline().
+          Logar um evento "stage_skipped" (message="Skipped {stage} — artifacts present")
+          para stages puladas (não usar stage_started/stage_completed para stages puladas).
+
+    3. ADICIONAR --resume em app/main.py:
+       - Adicionar ao mutually_exclusive_group: `--resume <JOB_ID>`
+       - No branch `if args.resume:`, chamar resume_pipeline(args.resume, llm, tts, lipsync).
+       - Tratar PipelineError com sys.exit(1), igual ao branch --input.
+
+    Restrições:
+    - NÃO modificar run_pipeline() existente — resume_pipeline() é uma função nova.
+    - NÃO remover artefatos existentes ao retomar.
+    - NÃO reprocessar stages cujos artefatos já existem.
+    - job_input.json é o único arquivo novo no workspace; não adicionar outros.
+
+  acceptance_criteria:
+  * `python -m app.main --resume job_2026_03_15_935` conclui sem erro usando
+    os artefatos já existentes e regenera apenas render/final.mp4 (deletar antes
+    para testar).
+  * Stages com artefatos presentes emitem evento "stage_skipped" no job.log.
+  * Stages sem artefatos executam normalmente e produzem os artefatos esperados.
+  * `pytest tests/ -q` passa sem regressões.
+  validation_checks:
+  * Deletar render/final.mp4 do job existente, rodar --resume e confirmar que
+    apenas compose_video é executado (demais stages logam stage_skipped).
+  * Confirmar que job.log contém stage_skipped para as stages puladas.
+  * Rodar `pytest tests/ -q` e confirmar que todos os testes passam.
+  stop_conditions:
+  * STOP se job_input.json não existir no job alvo — documentar e orientar
+    o usuário a usar --input com o JSON original em vez de --resume.
+  * STOP se a reconstrução do ValidatedJob falhar por campos inválidos ou
+    ausentes — investigar se o schema mudou desde que o job foi criado.
+  rollback_notes:
+  * Reverter qualquer mudança em run_pipeline() — apenas resume_pipeline() é nova.
+  * Reverter se testes de pipeline ou observabilidade existentes quebrem.
+
 ## GLOBAL_CHECKS
 
 * Confirm all touched tests pass before marking any task complete.
