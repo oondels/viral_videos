@@ -48,3 +48,11 @@ Every loop iteration must:
   - **Granularidade:** 0.15s a 30fps = 4-5 frames. Mudança de ~22px/frame (W) e ~33px/frame (H) — suficiente para transição perceptível mas não abrupta. Considerar 0.3s (9 frames) se necessário.
   - **zoompan descartado:** funciona para imagem única mas não redimensiona o output — faz crop/zoom interno na resolução fixa. Não se integra ao padrão de overlay do compositor.
 - Notes for next task: T-002 deve atualizar a spec com base nesta decisão. A sintaxe `scale=w='...':h='...':eval=frame` deve ser mencionada na spec como abordagem de implementação. O overlay aceita expressões em `x` e `y` para ancoragem dinâmica.
+
+## 2026-03-16 - T-002 - Atualizar MODULE_COMPOSITOR_SPEC com comportamento de transição suave
+
+- Outcome: spec atualizada com seção "Speaker transition behavior", novos campos de preset e render metadata, e novos critérios de aceitação.
+- Files changed: docs/specs/MODULE_COMPOSITOR_SPEC.md.
+- Validations: `pytest tests/ -q` → 233 passed; leitura manual da spec confirma consistência interna.
+- Docs updated: docs/specs/MODULE_COMPOSITOR_SPEC.md.
+- Notes for next task: T-003 deve adicionar `speaker_transition_duration_sec` e `speaker_anchor` ao preset `shorts_default.json` e validar em `asset_service.py`. Os campos estão definidos na spec como obrigatórios.

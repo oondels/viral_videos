@@ -44,6 +44,16 @@ The MVP final video must be:
 - Layout geometry must come from the selected render preset, not hardcoded magic numbers in the module.
 - Title and subtitle styling must come from the selected render preset, including font references.
 
+## Speaker transition behavior
+
+- Each character occupies a fixed horizontal position for the entire video duration: the first character (alphabetically) is always on the left, the second is always on the right. No character swaps sides at any point.
+- Both characters must be visible in every frame of the video.
+- When the active speaker changes, the newly active character smoothly scales from `inactive_speaker_box` dimensions to `active_speaker_box` dimensions over `speaker_transition_duration_sec` seconds. Simultaneously, the previously active character scales from `active_speaker_box` to `inactive_speaker_box` in the same interval.
+- The scale transition must use an ease-in-out curve: `(1 - cos(PI * t / D)) / 2` where `D` is `speaker_transition_duration_sec`.
+- During the scale animation, each character's anchor point (controlled by `speaker_anchor`) must remain at a fixed horizontal position. For `center` anchor, the character's center x stays constant; for `left`, the left edge stays constant; for `right`, the right edge stays constant.
+- There must be no hard cut (instantaneous size change) between consecutive frames at any speaker transition point.
+- Implementation uses the FFmpeg `scale` filter with `eval=frame` and time-based expressions referencing `t`, integrated into the existing `filter_complex` builder. No intermediate files are required.
+
 ## Required preset fields
 
 The active preset must define:
@@ -55,8 +65,10 @@ The active preset must define:
 - title style;
 - active speaker box;
 - inactive speaker box;
-- subtitle safe area.
-- subtitle style.
+- subtitle safe area;
+- subtitle style;
+- `speaker_transition_duration_sec` (float, seconds — default `0.15`);
+- `speaker_anchor` (string: `left` | `center` | `right` — default `center`).
 
 ## Render metadata contract
 
@@ -69,6 +81,7 @@ The active preset must define:
 - `background_file`
 - `subtitle_file`
 - `timeline_item_count`
+- `speaker_transition_duration_sec`
 
 ## Failure conditions
 
@@ -89,3 +102,6 @@ The active preset must define:
 - The final audio track matches `master_audio.wav`.
 - The title hook is visible within the first `2` seconds.
 - `render_metadata.json` exists and references the final output path.
+- No hard cut in scale between consecutive frames at any speaker transition point.
+- Both characters are visible in every frame of the video.
+- Each character's horizontal position (x) remains constant throughout the entire video duration.

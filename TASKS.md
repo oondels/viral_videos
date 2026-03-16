@@ -106,7 +106,7 @@ inputs:
 
 * id: T-002
   title: Atualizar MODULE_COMPOSITOR_SPEC com comportamento de transição suave
-  status: false
+  status: true
   type: docs
   depends_on: [T-001]
   read_first:
