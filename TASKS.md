@@ -1,22 +1,26 @@
 ---
 spec_type: TASKS
-feature_slug: viral-videos-mvp
 status: ready
-version: 2.1
 loop_mode: ralph
-last_updated: 2026-03-15T00:00:00Z
+last_updated: 2026-03-16T00:00:00Z
 inputs:
 * docs/DESIGN_SPEC.md
+* IMPLEMENTATION_PLAN.md
 * docs/specs/README.md
 * PROGRESS.md
 ---
 
-# TASK PLAN - viral-videos-mvp
+# TASK PLAN
+
+> Tasks here correspond to the current `IMPLEMENTATION_PLAN.md`.
+> When a new plan begins, this file is replaced entirely.
+> Completed task results are preserved in `PROGRESS.md`.
 
 ## LOOP_RULES
 
 * On each iteration, select the first task with `status: false` whose `depends_on` tasks are all `true`.
 * Read `docs/DESIGN_SPEC.md` first on every iteration.
+* Read `IMPLEMENTATION_PLAN.md` to understand the purpose and scope of the current work.
 * Read `PROGRESS.md` after `docs/DESIGN_SPEC.md` to recover the knowledge produced by previous completed tasks.
 * Then read only the files listed under `read_first` for the selected task.
 * Complete exactly one task per iteration.
@@ -38,534 +42,395 @@ inputs:
 ## TASKS
 
 * id: T-001
-  title: Scaffold the minimum repository work tree
+  title: Prototipar abordagem de transição de escala no FFmpeg (spike)
   status: true
-  type: code
+  type: chore
   depends_on: []
-
-* id: T-002
-  title: Define the canonical job input schema and validator
-  status: true
-  type: code
-  depends_on: [T-001]
-
-* id: T-003
-  title: Implement JobContext path authority
-  status: true
-  type: code
-  depends_on: [T-001]
-
-* id: T-004
-  title: Implement asset registry and loaders
-  status: true
-  type: code
-  depends_on: [T-001]
-
-* id: T-005
-  title: Implement the Script Writer module
-  status: true
-  type: code
-  depends_on: [T-002, T-003, T-004]
-
-* id: T-006
-  title: Implement the TTSProvider adapter interface
-  status: true
-  type: code
-  depends_on: [T-003]
-
-* id: T-007
-  title: Implement the TTS module
-  status: true
-  type: code
-  depends_on: [T-006]
-
-* id: T-008
-  title: Implement the Timeline Builder module
-  status: true
-  type: code
-  depends_on: [T-007]
-
-* id: T-009
-  title: Implement the LipSync adapter interface and static image adapter
-  status: true
-  type: code
-  depends_on: [T-003]
-
-* id: T-010
-  title: Implement the LipSync module
-  status: true
-  type: code
-  depends_on: [T-009]
-
-* id: T-011
-  title: Implement the Background Selector module
-  status: true
-  type: code
-  depends_on: [T-003, T-004]
-
-* id: T-012
-  title: Implement the Subtitle Generator module
-  status: true
-  type: code
-  depends_on: [T-008]
-
-* id: T-013
-  title: Implement the FFmpeg adapter
-  status: true
-  type: code
-  depends_on: [T-001]
-
-* id: T-014
-  title: Implement the Compositor module
-  status: true
-  type: code
-  depends_on: [T-008, T-010, T-011, T-012, T-013]
-
-* id: T-015
-  title: Implement the Pipeline orchestrator
-  status: true
-  type: code
-  depends_on: [T-005, T-007, T-008, T-010, T-011, T-012, T-014]
-
-* id: T-016
-  title: Implement the main entry point
-  status: true
-  type: code
-  depends_on: [T-015]
-
-* id: T-017
-  title: Add concrete OpenAI LLM adapter
-  status: true
-  type: code
-  depends_on: [T-005]
-
-* id: T-018
-  title: Add concrete ElevenLabs TTS adapter
-  status: true
-  type: code
-  depends_on: [T-006]
-
-* id: T-019
-  title: Wire providers in pipeline and main; add config files
-  status: true
-  type: code
-  depends_on: [T-017, T-018, T-015]
-
-* id: T-020
-  title: Add StaticImageLipSync adapter for MVP lip-sync
-  status: true
-  type: code
-  depends_on: [T-009, T-010]
-
-* id: T-021
-  title: Add sequential batch processing and final batch report
-  status: true
-  type: code
-  depends_on: [T-019]
-
-* id: T-022
-  title: Harden the MVP with validation, retries, and minimum tests
-  status: true
-  type: code
-  depends_on: [T-020]
-
-* id: T-023
-  title: Add minimum operational documentation for humans and agents
-  status: true
-  type: docs
-  depends_on: [T-019]
-
-* id: T-024
-  title: Fix silent/quiet audio - diagnose ElevenLabs PCM output and add loudness normalization
-  status: true
-  type: code
-  depends_on: [T-019]
   read_first:
-  * docs/DESIGN_SPEC.md
-  * app/adapters/elevenlabs_tts_adapter.py
-  * app/adapters/ffmpeg_adapter.py
-  * app/modules/timeline_builder.py
-  * app/modules/tts.py
-  goal: >
-    Ensure the master audio track and individual TTS segments are audible at
-    standard broadcast loudness levels. Currently individual segments peak at
-    -20.6 dB and mean at -34.1 dB — far below the expected ~-6 dB peak from
-    a well-configured ElevenLabs TTS call.
-  scope: >
-    app/adapters/elevenlabs_tts_adapter.py,
-    app/adapters/ffmpeg_adapter.py,
-    app/modules/timeline_builder.py
-  instructions: |
-    Root-cause the quiet audio before coding a fix:
-
-    1. DIAGNOSE: Check whether the raw PCM bytes returned by the ElevenLabs
-       SDK for `output_format="pcm_22050"` are 16-bit signed integers.
-       Compute the expected file size (samples × 2 bytes + 44-byte WAV header)
-       and compare against the actual file size of a generated segment.
-       If the sizes match, the data is being written correctly and the issue
-       is low output volume from the API.
-
-    2. DIAGNOSE: Inspect whether `voice_settings` (stability,
-       similarity_boost, style, use_speaker_boost) should be added to the
-       `text_to_speech.convert()` call to increase output loudness.
-       ElevenLabs default stability=0.5, similarity_boost=0.75 can produce
-       lower amplitude output; setting use_speaker_boost=True raises loudness.
-
-    3. FIX — normalization step: Add a `normalize_audio` function to
-       `app/adapters/ffmpeg_adapter.py` that runs FFmpeg with the
-       `loudnorm=I=-14:TP=-1.5:LRA=11` filter to produce a normalized copy
-       of the master audio at -14 LUFS (YouTube/streaming standard).
-
-    4. Call `normalize_audio` in `build_timeline` immediately after
-       `concat_audio` succeeds, replacing `master_path` in-place so the
-       rest of the pipeline picks up the normalized file transparently.
-
-    5. Do NOT change the per-segment WAV files; only the master_audio.wav
-       is normalized, preserving original segments for debugging.
-  acceptance_criteria:
-  * `ffmpeg -af volumedetect` on master_audio.wav reports max_volume >= -3 dB
-    after normalization.
-  * Individual segment WAV files are unchanged (still raw ElevenLabs output).
-  * The final.mp4 audio stream has clearly audible speech when played back.
-  * Existing unit tests still pass.
-  validation_checks:
-  * Run `ffmpeg -i output/jobs/<job>/audio/master/master_audio.wav -af volumedetect -f null /dev/null`
-    and confirm max_volume >= -3 dB.
-  * Run `pytest` and confirm no regressions.
-  stop_conditions:
-  * STOP if the ElevenLabs SDK returns a response format other than raw 16-bit
-    PCM for `output_format="pcm_22050"` — document the finding and redesign
-    the adapter before writing any code.
-  rollback_notes:
-  * Revert any change that modifies or overwrites individual audio segments.
-  * Revert if normalization introduces clipping (TP > 0 dB).
-
-* id: T-025
-  title: Fix subtitle font size - subtitles render too large due to libass PlayResY mismatch
-  status: true
-  type: code
-  depends_on: [T-014]
-  read_first:
-  * docs/DESIGN_SPEC.md
+  * IMPLEMENTATION_PLAN.md
   * app/modules/compositor.py
+  * app/adapters/ffmpeg_adapter.py
   * assets/presets/shorts_default.json
   goal: >
-    Subtitles in the final.mp4 currently occupy most of the video frame.
-    The root cause is that `force_style='FontSize=64'` is passed to the
-    FFmpeg `subtitles` filter, but libass uses a default PlayResY=288 when
-    rendering SRT files. FontSize=64 at PlayResY=288 scales to
-    (64/288)×1920 ≈ 427 px on the 1920-tall canvas — far too large.
+    Determinar a abordagem viável de animação de escala suave no FFmpeg antes
+    de comprometer qualquer mudança de produção. O spike deve validar se
+    `zoompan` suporta interpolação ease-in-out com múltiplos overlays
+    simultâneos ou se a abordagem correta é geração de frames intermediários
+    via expressões `scale` com variável de tempo `t`. O resultado é uma decisão
+    documentada em `PROGRESS.md`, não código de produção.
   scope: >
-    app/modules/compositor.py,
-    assets/presets/shorts_default.json
+    Nenhum arquivo de produção alterado. O spike pode criar um script
+    temporário em `scripts/spike_transition.py` (não commitado em produção)
+    para testar comandos FFmpeg isoladamente com os assets existentes
+    (`assets/characters/char_a/base.png`, `assets/characters/char_b/base.png`).
+    O resultado do spike deve responder: (1) `zoompan` funciona com overlay de
+    dois inputs simultâneos? (2) `scale=w='lerp(w1,w2,t/dur)':...` é suportado
+    com expressões de tempo relativo? (3) Qual abordagem produz transição
+    perceptivelmente suave a 30fps em 4-5 frames (0.15s)?
   instructions: |
-    Fix the libass font size scaling in the compositor:
-
-    1. In `compose_video`, before building the `force_style` string, compute
-       the libass-adjusted font size:
-
-         LIBASS_PLAY_RES_Y = 288  # libass default reference height for SRT
-         libass_font_size = max(1, round(sub_style["font_size"] * LIBASS_PLAY_RES_Y / H))
-
-       where H is `preset["height"]` (1920 for shorts_default).
-       For the current font_size=64: 64 × 288/1920 = 9.6 → 10 libass pts,
-       which renders as visually ≈64 px on a 1920-tall video.
-
-    2. Replace `FontSize={sub_style['font_size']}` with
-       `FontSize={libass_font_size}` in the `force_style` string.
-
-    3. Keep `font_size: 64` in `assets/presets/shorts_default.json` as-is —
-       it now means "64 visual pixels at the preset's native height", which
-       is an intuitive unit.
-
-    4. Add a comment in the compositor near the scaling formula explaining
-       the libass PlayResY=288 reference and the scaling rationale.
-
-    5. Do NOT modify the subtitle SRT file or the subtitle generation module.
+    1. Criar `scripts/spike_transition.py` com dois cenários de teste FFmpeg
+       mínimos usando os assets de personagem existentes:
+       - Cenário A: usar filtro `zoompan` para animar escala de um único input
+         de imagem entre dois tamanhos em 0.15s, verificar se a expressão
+         aceita variáveis de tempo `t` e curva ease-in-out.
+       - Cenário B: usar `scale=w='if(lt(t,0.15),lerp(500,400,t/0.15),400)'`
+         (ou expressão equivalente) diretamente no filtro `scale` dentro do
+         filter_complex, verificar se FFmpeg aceita expressões de tempo
+         relativo ao clip no contexto de overlay.
+    2. Executar cada cenário via `run_ffmpeg()` do adapter (nunca chamada
+       direta de subprocess) e registrar se o comando foi aceito sem erro.
+    3. Inspecionar os 4-5 frames do intervalo de transição com `ffprobe` ou
+       extração de frames para confirmar se a variação de tamanho é perceptível
+       e suave.
+    4. Documentar a decisão em `PROGRESS.md` com: abordagem escolhida,
+       sintaxe FFmpeg exata que funciona, limitações encontradas, e se o
+       default de 0.15s (4-5 frames a 30fps) é visualmente suficiente.
+    5. Remover `scripts/spike_transition.py` antes do commit.
   acceptance_criteria:
-  * Subtitles in final.mp4 are visually approximately 64px tall on the
-    1920-pixel-tall canvas (occupying ~3-4% of the vertical space).
-  * The `subtitle_safe_area` defined in the preset is respected — subtitles
-    appear in the lower portion of the screen, not overlapping character clips.
-  * Existing unit tests still pass.
+  * PROGRESS.md contém entrada T-001 com a decisão de abordagem documentada.
+  * A decisão especifica a sintaxe FFmpeg exata (filtro e expressão) a ser usada em T-003.
+  * O spike confirma se 4-5 frames (0.15s a 30fps) produzem transição perceptível.
+  * Nenhum arquivo de produção foi alterado.
+  * `scripts/spike_transition.py` não está presente no commit.
   validation_checks:
-  * Render a test job and visually confirm subtitles are readable but not
-    oversized (comparable in height to a typical YouTube Shorts subtitle).
-  * Run `pytest` and confirm no regressions.
+  * `pytest tests/ -q` → mesmo número de testes passando que antes (nenhuma regressão).
+  * `git diff --name-only` não inclui arquivos de `app/` ou `assets/` ou `docs/`.
   stop_conditions:
-  * STOP if the `subtitles` FFmpeg filter does not accept the `force_style`
-    `FontSize` parameter — switch to `drawtext` with explicit coordinate
-    calculation instead and document the decision.
+  * Se nenhuma abordagem FFmpeg produzir transição suave sem erros de sintaxe,
+    parar e documentar a limitação em PROGRESS.md antes de prosseguir.
+  * Se `zoompan` e expressões de `scale` com tempo ambos falharem, documentar
+    a necessidade de geração de frames intermediários via Python (Pillow) antes
+    de iniciar T-002.
   rollback_notes:
-  * Revert any change that modifies the SRT content or subtitle timing.
-  * Revert if the libass scaling formula changes subtitle positioning
-    (x/y) in an unintended way.
+  * Não há código de produção para reverter — o spike não altera arquivos de produção.
 
-* id: T-026
-  title: Fix corrupted MP4 output — SAR não-quadrado, áudio 22050Hz mono e bitrate alto
+* id: T-002
+  title: Atualizar MODULE_COMPOSITOR_SPEC com comportamento de transição suave
+  status: true
+  type: docs
+  depends_on: [T-001]
+  read_first:
+  * docs/specs/MODULE_COMPOSITOR_SPEC.md
+  * IMPLEMENTATION_PLAN.md
+  * PROGRESS.md
+  goal: >
+    Atualizar `MODULE_COMPOSITOR_SPEC.md` para documentar o comportamento de
+    transição suave de escala entre speakers, os novos campos de preset
+    (`speaker_transition_duration_sec`, `speaker_anchor`), a semântica de
+    posições horizontais fixas por personagem, e os novos critérios de
+    aceitação. A spec deve ser consistente com a decisão de abordagem
+    documentada em T-001.
+  scope: >
+    Apenas `docs/specs/MODULE_COMPOSITOR_SPEC.md`. Nenhum código alterado.
+  instructions: |
+    1. Adicionar seção "Speaker transition behavior" à spec com:
+       - Descrição das posições horizontais fixas: char_a sempre à esquerda,
+         char_b sempre à direita, sem swap de lado em nenhum frame.
+       - Descrição da animação de escala suave: quando o speaker ativo muda,
+         o personagem que passa a falar cresce de `inactive_speaker_box` para
+         `active_speaker_box` em `speaker_transition_duration_sec` segundos;
+         o personagem que deixa de falar encolhe no mesmo intervalo.
+       - Curva ease-in-out obrigatória.
+       - Ausência de corte seco de escala em qualquer frame.
+       - Ambos os personagens presentes em todo frame do vídeo.
+       - Posição horizontal (x) de cada personagem constante durante toda a
+         animação (ancoragem via `speaker_anchor`).
+    2. Adicionar os novos campos obrigatórios de preset na seção
+       "Required preset fields":
+       - `speaker_transition_duration_sec` (float, seconds)
+       - `speaker_anchor` (string: `left` | `center` | `right`)
+    3. Adicionar `speaker_transition_duration_sec` na seção
+       "Render metadata contract" como campo obrigatório do
+       `render_metadata.json`.
+    4. Adicionar critérios de aceitação na seção "Acceptance tests":
+       - Nenhum corte seco de escala entre frames consecutivos de troca de speaker.
+       - Ambos os personagens presentes em todo frame do vídeo.
+       - A posição horizontal (x) de cada personagem permanece constante
+         durante toda a duração do vídeo.
+  acceptance_criteria:
+  * `docs/specs/MODULE_COMPOSITOR_SPEC.md` contém seção "Speaker transition behavior".
+  * A spec lista `speaker_transition_duration_sec` e `speaker_anchor` como campos obrigatórios do preset.
+  * A spec lista `speaker_transition_duration_sec` como campo obrigatório do `render_metadata.json`.
+  * A spec lista os três novos critérios de aceitação de transição.
+  * A spec não contradiz nenhum comportamento existente documentado.
+  validation_checks:
+  * Leitura manual da spec para confirmar consistência interna.
+  * `pytest tests/ -q` → nenhuma regressão (testes não leem a spec diretamente).
+  stop_conditions:
+  * Se a decisão de T-001 revelar comportamento incompatível com o que o
+    IMPLEMENTATION_PLAN descreve, parar e resolver a contradição antes de
+    atualizar a spec.
+  rollback_notes:
+  * Reverter `docs/specs/MODULE_COMPOSITOR_SPEC.md` ao estado anterior via `git checkout`.
+
+* id: T-003
+  title: Adicionar campos de transição ao preset shorts_default.json
+  status: true
+  type: chore
+  depends_on: [T-002]
+  read_first:
+  * assets/presets/shorts_default.json
+  * docs/specs/MODULE_COMPOSITOR_SPEC.md
+  * app/services/asset_service.py
+  goal: >
+    Adicionar os campos `speaker_transition_duration_sec` e `speaker_anchor`
+    ao preset `assets/presets/shorts_default.json` com os valores default
+    definidos no plano (`0.15` e `"center"` respectivamente), e garantir que
+    `asset_service.load_preset()` valida a presença dos novos campos.
+  scope: >
+    `assets/presets/shorts_default.json` e `app/services/asset_service.py`.
+    Nenhum outro arquivo alterado.
+  instructions: |
+    1. Abrir `assets/presets/shorts_default.json` e adicionar após o campo
+       `subtitle_style`:
+       - `"speaker_transition_duration_sec": 0.15`
+       - `"speaker_anchor": "center"`
+    2. Abrir `app/services/asset_service.py` e localizar a lista de campos
+       obrigatórios validados por `load_preset()`. Adicionar
+       `"speaker_transition_duration_sec"` e `"speaker_anchor"` a essa lista.
+    3. Confirmar que `load_preset("shorts_default")` retorna o preset sem erro
+       e que os dois novos campos estão presentes no dict retornado.
+  acceptance_criteria:
+  * `assets/presets/shorts_default.json` contém `speaker_transition_duration_sec: 0.15`.
+  * `assets/presets/shorts_default.json` contém `speaker_anchor: "center"`.
+  * `app/services/asset_service.py` valida os dois novos campos em `load_preset()`.
+  * `load_preset("shorts_default")` não levanta exceção.
+  * Um preset sem os novos campos levanta erro descritivo em `load_preset()`.
+  validation_checks:
+  * `pytest tests/unit/test_asset_service.py -v` → todos os testes passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  stop_conditions:
+  * Se `load_preset()` não tiver uma lista explícita de campos obrigatórios
+    (i.e., validação implícita ou ausente), parar e implementar a validação
+    explícita antes de adicionar os novos campos.
+  rollback_notes:
+  * Reverter `assets/presets/shorts_default.json` e `app/services/asset_service.py`
+    via `git checkout` se os testes existentes quebrarem.
+
+* id: T-004
+  title: Implementar posições horizontais fixas por personagem no compositor
   status: true
   type: code
-  depends_on: [T-025]
+  depends_on: [T-003]
   read_first:
-  * docs/DESIGN_SPEC.md
+  * app/modules/compositor.py
+  * docs/specs/MODULE_COMPOSITOR_SPEC.md
+  * assets/presets/shorts_default.json
+  * app/core/job_context.py
+  goal: >
+    Refatorar `compose_video()` em `compositor.py` para que cada personagem
+    ocupe sempre a mesma posição horizontal fixa durante todo o vídeo —
+    char_a à esquerda, char_b à direita — eliminando o comportamento atual
+    onde o personagem ativo aparece sempre na `active_speaker_box` e o inativo
+    sempre na `inactive_speaker_box` independentemente de qual personagem é
+    qual. Esta task introduz apenas as posições fixas (sem animação de
+    transição), que será adicionada em T-005.
+  scope: >
+    Apenas `app/modules/compositor.py`. Nenhum outro arquivo alterado.
+    A lógica de composição deve continuar usando `run_ffmpeg()` e
+    `JobContext` para todos os paths.
+  instructions: |
+    1. No início de `compose_video()`, após carregar o preset, determinar qual
+       personagem é char_a e qual é char_b a partir da lista `all_speakers`
+       (ordenada alfabeticamente — char_a é sempre o primeiro).
+    2. Definir um mapeamento fixo de personagem para posição:
+       - char_a → posição esquerda: usar `active_speaker_box` quando ativo,
+         `inactive_speaker_box` quando inativo, mas com x fixo em
+         `active_speaker_box.x` (lado esquerdo do canvas).
+       - char_b → posição direita: usar `active_speaker_box` quando ativo,
+         `inactive_speaker_box` quando inativo, mas com x fixo em
+         `inactive_speaker_box.x` (lado direito do canvas).
+       Nota: por ora, sem animação — a troca ainda é um corte seco de escala,
+       mas cada personagem permanece no seu lado. A animação suave vem em T-005.
+    3. Refatorar o loop de filter_complex para que cada item de timeline
+       sobreponha os dois personagens simultaneamente (ativo e inativo), cada
+       um na sua posição x fixa, com o tamanho determinado pelo seu estado
+       (ativo ou inativo) no item atual.
+    4. Garantir que a imagem do personagem inativo continue sendo carregada de
+       `load_character(inactive_id)["base_png"]` e que o clip ativo continue
+       vindo de `item["clip_file"]`.
+    5. Manter todos os contratos existentes: `run_ffmpeg()`, `JobContext`,
+       `CompositorError`, `write_render_metadata()`.
+  acceptance_criteria:
+  * `pytest tests/integration/test_compositor.py -v` → todos os testes passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  * O filter_complex gerado coloca char_a sempre à esquerda e char_b sempre à direita em cada item de timeline.
+  * Nenhuma chamada FFmpeg direta (subprocess) fora de `run_ffmpeg()`.
+  * Nenhum path montado fora de `JobContext`.
+  validation_checks:
+  * `pytest tests/integration/test_compositor.py -v` → todos passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  * `ruff check app/modules/compositor.py` → sem erros.
+  stop_conditions:
+  * Se o preset `shorts_default.json` não tiver posições x distintas para
+    `active_speaker_box` e `inactive_speaker_box` que separem claramente os
+    lados esquerdo e direito do canvas, parar e revisar o preset antes de
+    prosseguir.
+  rollback_notes:
+  * Reverter `app/modules/compositor.py` via `git checkout` se os testes de
+    integração do compositor quebrarem.
+
+* id: T-005
+  title: Implementar animação de escala suave (ease-in-out) na troca de speaker
+  status: true
+  type: code
+  depends_on: [T-004]
+  read_first:
+  * app/modules/compositor.py
+  * PROGRESS.md
+  * docs/specs/MODULE_COMPOSITOR_SPEC.md
+  goal: >
+    Adicionar a lógica de transição de escala suave em `compose_video()` para
+    que, quando o speaker ativo muda, ambos os personagens animem suavemente
+    entre os tamanhos ativo/inativo usando a abordagem determinada no spike
+    T-001 (documentada em `PROGRESS.md`). A duração e a âncora vêm dos novos
+    campos `speaker_transition_duration_sec` e `speaker_anchor` do preset.
+    Nenhum corte seco de escala deve ocorrer em nenhum frame.
+  scope: >
+    `app/modules/compositor.py` e, se necessário, `app/utils/video_utils.py`
+    para helpers de interpolação. Nenhum outro módulo alterado. Toda lógica
+    FFmpeg via `run_ffmpeg()`. Todos os paths via `JobContext`.
+  instructions: |
+    1. Ler `PROGRESS.md` para recuperar a decisão de abordagem do spike T-001
+       (sintaxe FFmpeg exata e limitações documentadas).
+    2. Calcular os instantes de troca de speaker a partir do `timeline`: um
+       instante de troca ocorre quando `timeline[i]["speaker"] !=
+       timeline[i-1]["speaker"]` — registrar o `start_sec` de cada item como
+       início da janela de transição.
+    3. Para cada personagem em cada janela de transição, construir a expressão
+       FFmpeg de escala animada conforme a abordagem escolhida no spike:
+       - Usar `speaker_transition_duration_sec` do preset como duração `D`.
+       - Usar curva ease-in-out: `f(t) = t < D ? (1 - cos(PI*t/D)) / 2 : 1`
+         ou equivalente suportado pelo FFmpeg.
+       - Interpolar `w` e `h` entre tamanho inativo e tamanho ativo (ou
+         vice-versa) durante `[t_switch, t_switch + D]`.
+       - Fora da janela de transição, usar tamanho fixo (ativo ou inativo).
+    4. Aplicar `speaker_anchor` do preset para calcular a posição x de overlay
+       de cada personagem de modo que o centro (ou borda configurada) do
+       personagem permaneça na posição horizontal fixa durante a animação.
+    5. Integrar as expressões no filter_complex preservando todos os outputs
+       rotulados existentes (`[bg_titled]`, `[final_v]`, etc.).
+    6. Se a abordagem exigir artefatos temporários em `temp/`, usar paths via
+       `JobContext` (adicionar `ctx.temp_dir()` se ainda não existir).
+  acceptance_criteria:
+  * `pytest tests/integration/test_compositor.py -v` → todos os testes passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  * O filter_complex não usa tamanhos fixos hardcoded nos frames de troca de speaker — as expressões de escala referenciam o tempo `t`.
+  * `speaker_transition_duration_sec` do preset é lido e usado na construção das expressões de animação.
+  * `speaker_anchor` do preset é lido e usado no cálculo do x de overlay.
+  * `ruff check app/modules/compositor.py` → sem erros.
+  validation_checks:
+  * `pytest tests/integration/test_compositor.py -v` → todos passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  * `ruff check app/` → sem erros.
+  stop_conditions:
+  * Se a abordagem do spike T-001 não for viável com os assets disponíveis
+    (chars de teste são imagens simples), parar e criar um caso de teste
+    mínimo antes de continuar.
+  * Se as expressões FFmpeg de tempo relativo não funcionarem no contexto de
+    overlay com múltiplos inputs, parar e documentar a limitação antes de
+    escolher abordagem alternativa.
+  rollback_notes:
+  * Reverter `app/modules/compositor.py` e `app/utils/video_utils.py` via
+    `git checkout` se os testes de integração quebrarem.
+
+* id: T-006
+  title: Incluir speaker_transition_duration_sec no render_metadata.json
+  status: false
+  type: code
+  depends_on: [T-005]
+  read_first:
+  * app/services/render_service.py
+  * app/modules/compositor.py
+  * docs/specs/MODULE_COMPOSITOR_SPEC.md
+  goal: >
+    Atualizar `write_render_metadata()` em `render_service.py` e sua chamada
+    em `compositor.py` para incluir o campo `speaker_transition_duration_sec`
+    no `render_metadata.json`, conforme definido na spec atualizada em T-002.
+  scope: >
+    `app/services/render_service.py` e `app/modules/compositor.py`.
+    Nenhum outro arquivo alterado.
+  instructions: |
+    1. Atualizar a assinatura de `write_render_metadata()` para aceitar
+       `speaker_transition_duration_sec: float` como parâmetro adicional.
+    2. Adicionar `"speaker_transition_duration_sec"` ao dict `metadata` gerado
+       pela função, com o valor do parâmetro recebido.
+    3. Adicionar `"speaker_transition_duration_sec"` ao set
+       `_REQUIRED_METADATA_FIELDS` para que a validação existente (se houver)
+       cubra o novo campo.
+    4. Em `compositor.py`, atualizar a chamada a `write_render_metadata()` para
+       passar o valor lido do preset:
+       `preset["speaker_transition_duration_sec"]`.
+  acceptance_criteria:
+  * `render_metadata.json` gerado contém o campo `speaker_transition_duration_sec` com o valor do preset.
+  * `write_render_metadata()` aceita e persiste o novo parâmetro.
+  * `pytest tests/integration/test_compositor.py -v` → todos os testes passam (incluindo validação de render_metadata).
+  * `pytest tests/ -q` → nenhuma regressão.
+  validation_checks:
+  * `pytest tests/integration/test_compositor.py -v` → todos passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  * `ruff check app/services/render_service.py app/modules/compositor.py` → sem erros.
+  stop_conditions:
+  * Se `write_render_metadata()` for chamada de outros locais além de
+    `compositor.py`, atualizar todas as chamadas antes de marcar a task
+    como completa.
+  rollback_notes:
+  * Reverter `app/services/render_service.py` e `app/modules/compositor.py`
+    via `git checkout` se os testes quebrarem.
+
+* id: T-007
+  title: Adicionar acceptance tests de transição suave no compositor
+  status: false
+  type: code
+  depends_on: [T-006]
+  read_first:
+  * tests/integration/test_compositor.py
   * docs/specs/MODULE_COMPOSITOR_SPEC.md
   * app/modules/compositor.py
   goal: >
-    O final.mp4 gerado está inutilizável: VLC exibe tela preta, VS Code reproduce
-    sem áudio, e o arquivo é rejeitado pelo WhatsApp e Google Drive.
-    Diagnóstico via ffprobe do job job_2026_03_15_935 revelou três causas raiz:
-    (1) SAR 10240:10239 em vez de 1:1 — causa tela preta em VLC e rejeição por
-    plataformas; (2) áudio 22050 Hz mono — VS Code não reproduz e WhatsApp rejeita;
-    (3) bitrate ~4 Mbps gera arquivo de ~17 MB, acima do limite de 16 MB do WhatsApp.
+    Escrever novos testes de aceitação em `tests/integration/test_compositor.py`
+    que validem os três critérios de transição definidos na spec atualizada:
+    (1) ausência de cortes secos de escala, (2) presença simultânea de ambos
+    os personagens em todo frame, (3) posição horizontal constante por
+    personagem. Os testes devem usar os assets de personagem e preset
+    existentes e executar o compositor end-to-end.
   scope: >
-    app/modules/compositor.py
+    Apenas `tests/integration/test_compositor.py`. Nenhum código de produção
+    alterado. Os testes podem usar `ffprobe` via `ffprobe_utils` para
+    inspecionar o output se necessário.
   instructions: |
-    Aplicar três correções cirúrgicas em compose_video() em app/modules/compositor.py:
-
-    1. SAR — adicionar setsar=1 nos filtros de escala do filter_complex:
-       - Background: alterar `scale={W}:{H}` para `scale={W}:{H},setsar=1`
-       - Cada clip ativo: alterar `scale={abox['w']}:{abox['h']}` para
-         `scale={abox['w']}:{abox['h']},setsar=1`
-       Isso garante SAR 1:1 no output final, eliminando a tela preta no VLC.
-
-    2. Áudio — adicionar os flags de áudio na lista cmd final (antes do path de saída):
-         "-ar", "44100",
-         "-ac", "2",
-       Isso reamostla o áudio de 22050 Hz mono para 44100 Hz estéreo, padrão
-       esperado por VS Code, WhatsApp e Google Drive.
-
-    3. Bitrate / tamanho — adicionar flags de codec de vídeo na lista cmd final:
-         "-preset", "fast",
-         "-crf", "28",
-       Isso reduz o bitrate de ~4 Mbps para ~1.5–2 Mbps, mantendo qualidade
-       aceitável e produzindo arquivos bem abaixo de 16 MB para vídeos de ~35s.
-
-    NÃO alterar o filter_complex além dos setsar=1.
-    NÃO alterar nenhum outro módulo.
-    NÃO alterar testes existentes além do necessário para refletir os novos flags.
+    1. Adicionar teste `test_no_hard_cut_on_speaker_change`: gerar um vídeo
+       com pelo menos dois itens de timeline com speakers diferentes; extrair
+       frames do intervalo de troca com `ffprobe` ou `ffmpeg -vframes`; verificar
+       que nenhum par de frames consecutivos ao redor do instante de troca tem
+       diferença de tamanho de personagem maior que o esperado de um corte seco.
+       (Abordagem alternativa: verificar que o filter_complex gerado contém
+       expressões de tempo `t` nas chamadas de `scale` dos personagens, o que
+       é verificável sem render completo.)
+    2. Adicionar teste `test_both_characters_present_every_segment`: verificar
+       que o filter_complex gerado para um vídeo com dois speakers contém
+       exactamente dois inputs de imagem de personagem por item de timeline
+       (ativo e inativo), confirmando presença simultânea.
+    3. Adicionar teste `test_character_x_position_is_fixed`: para um vídeo com
+       dois itens de timeline com speakers alternados, verificar que a posição
+       x de overlay de char_a é a mesma no item 1 e no item 2, e que a posição
+       x de overlay de char_b é a mesma em ambos os itens.
+    4. Adicionar teste `test_render_metadata_includes_transition_duration`:
+       verificar que `render_metadata.json` gerado contém
+       `speaker_transition_duration_sec` com o valor correto do preset.
   acceptance_criteria:
-  * `ffprobe final.mp4` mostra SAR 1:1 (sample_aspect_ratio = "1:1").
-  * `ffprobe final.mp4` mostra stream de áudio com sample_rate=44100, channels=2.
-  * Arquivo final.mp4 tem menos de 16 MB para um job de ~35 segundos.
-  * VLC reproduz o vídeo com imagem e áudio sem tela preta.
-  * `pytest tests/ -q` passa sem regressões.
+  * Os quatro novos testes existem em `tests/integration/test_compositor.py`.
+  * `pytest tests/integration/test_compositor.py -v` → todos os testes (novos e existentes) passam.
+  * `pytest tests/ -q` → nenhuma regressão no total de testes.
+  * Os testes falham se `compositor.py` for revertido para a implementação sem transição (corte seco).
   validation_checks:
-  * Rodar `ffprobe -v quiet -print_format json -show_streams render/final.mp4`
-    e confirmar SAR 1:1, audio sample_rate=44100, channels=2.
-  * Confirmar tamanho do arquivo final com `ls -lh render/final.mp4`.
-  * Rodar `pytest tests/ -q` e confirmar que todos os testes passam.
+  * `pytest tests/integration/test_compositor.py -v` → todos passam.
+  * `pytest tests/ -q` → nenhuma regressão.
+  * `ruff check tests/integration/test_compositor.py` → sem erros.
   stop_conditions:
-  * STOP se os testes de integração do compositor falharem por mudança de contrato
-    de duração ou resolução — investigar antes de prosseguir.
+  * Se não for possível verificar a ausência de corte seco sem render completo
+    (por limitação dos assets de teste), usar verificação do filter_complex
+    gerado como proxy aceitável e documentar essa decisão.
   rollback_notes:
-  * Reverter qualquer mudança que altere o filter_complex além dos setsar=1.
-  * Reverter se a tolerância de duração (0.10s) for violada pelo novo CRF.
-
-* id: T-027
-  title: Implementar modo --resume para retomar jobs a partir de artefatos existentes
-  status: true
-  type: code
-  depends_on: [T-026]
-  read_first:
-  * docs/DESIGN_SPEC.md
-  * docs/specs/SYSTEM_PIPELINE_ORCHESTRATION_SPEC.md
-  * app/pipeline.py
-  * app/main.py
-  * app/services/file_service.py
-  * app/core/job_context.py
-  * app/core/contracts.py
-  goal: >
-    Permitir reexecutar um job já existente (ex: output/jobs/job_2026_03_15_935)
-    a partir dos artefatos intermediários já gerados, pulando as etapas cujos
-    outputs canônicos já existem em disco e reexecutando apenas as etapas
-    seguintes ou as que falharam. Objetivo: evitar reprocessamento caro (LLM,
-    TTS, lip-sync) quando apenas o compositor ou os subtítulos precisam ser
-    regerados.
-  scope: >
-    app/services/file_service.py,
-    app/pipeline.py,
-    app/main.py
-  instructions: |
-    Implementar o modo de resume em três passos:
-
-    1. PERSISTIR JOB INPUT em init_workspace():
-       Em app/services/file_service.py, após criar os subdirs canônicos, serializar
-       o ValidatedJob para JSON e escrever em output/jobs/<job_id>/job_input.json.
-       Usar ctx.root() / "job_input.json" como path.
-       Formato: ctx.job.model_dump() serializado com json.dumps(indent=2).
-       Idempotente — sobrescrever sempre que init_workspace é chamado.
-
-    2. ADICIONAR resume_pipeline() em app/pipeline.py:
-       Função com assinatura:
-         def resume_pipeline(
-             job_id: str,
-             llm_provider: ScriptGenerator,
-             tts_provider: TTSProvider,
-             lipsync_engine: LipSyncEngine,
-         ) -> JobContext:
-
-       Passos internos de resume_pipeline():
-       a. Ler output/jobs/<job_id>/job_input.json e reconstruir ValidatedJob
-          via ValidatedJob.model_validate(json.loads(...)).
-       b. Criar JobContext(job=validated_job).
-       c. Garantir que o workspace existe via init_workspace(ctx) (idempotente).
-       d. Para cada stage de 3 a 10, antes de executar, verificar se o artefato
-          canônico de saída da stage já existe em disco:
-          - write_script     → ctx.script_json() e ctx.dialogue_json()
-          - generate_tts     → ctx.audio_manifest()
-          - build_timeline   → ctx.timeline_json() e ctx.master_audio()
-          - generate_lipsync → todos os clip_file em timeline.json (lê o JSON e
-                               verifica se cada Path(item["clip_file"]).exists())
-          - prepare_background → ctx.prepared_background()
-          - generate_subtitles → ctx.subtitles_srt()
-          - compose_video    → ctx.final_mp4()
-          Se todos os artefatos de saída de uma stage já existem → logar "skipped"
-          e não chamar a função da stage.
-          Se qualquer artefato de saída estiver ausente → executar a stage normalmente.
-       e. finalize_job: sempre executar (registrar conclusão no log).
-       f. Usar o mesmo helper _run/_run_with_retry e o mesmo JobLogger de run_pipeline().
-          Logar um evento "stage_skipped" (message="Skipped {stage} — artifacts present")
-          para stages puladas (não usar stage_started/stage_completed para stages puladas).
-
-    3. ADICIONAR --resume em app/main.py:
-       - Adicionar ao mutually_exclusive_group: `--resume <JOB_ID>`
-       - No branch `if args.resume:`, chamar resume_pipeline(args.resume, llm, tts, lipsync).
-       - Tratar PipelineError com sys.exit(1), igual ao branch --input.
-
-    Restrições:
-    - NÃO modificar run_pipeline() existente — resume_pipeline() é uma função nova.
-    - NÃO remover artefatos existentes ao retomar.
-    - NÃO reprocessar stages cujos artefatos já existem.
-    - job_input.json é o único arquivo novo no workspace; não adicionar outros.
-
-  acceptance_criteria:
-  * `python -m app.main --resume job_2026_03_15_935` conclui sem erro usando
-    os artefatos já existentes e regenera apenas render/final.mp4 (deletar antes
-    para testar).
-  * Stages com artefatos presentes emitem evento "stage_skipped" no job.log.
-  * Stages sem artefatos executam normalmente e produzem os artefatos esperados.
-  * `pytest tests/ -q` passa sem regressões.
-  validation_checks:
-  * Deletar render/final.mp4 do job existente, rodar --resume e confirmar que
-    apenas compose_video é executado (demais stages logam stage_skipped).
-  * Confirmar que job.log contém stage_skipped para as stages puladas.
-  * Rodar `pytest tests/ -q` e confirmar que todos os testes passam.
-  stop_conditions:
-  * STOP se job_input.json não existir no job alvo — documentar e orientar
-    o usuário a usar --input com o JSON original em vez de --resume.
-  * STOP se a reconstrução do ValidatedJob falhar por campos inválidos ou
-    ausentes — investigar se o schema mudou desde que o job foi criado.
-  rollback_notes:
-  * Reverter qualquer mudança em run_pipeline() — apenas resume_pipeline() é nova.
-  * Reverter se testes de pipeline ou observabilidade existentes quebrem.
-
-### T-028: Adicionar `-movflags +faststart` ao compositor para MP4 publicável
-- **id:** T-028
-- **status:** true
-- **depends_on:** [T-027]
-- **read_first:** ["docs/specs/MODULE_COMPOSITOR_SPEC.md", "app/modules/compositor.py"]
-- **description:** O `moov atom` do MP4 gerado está posicionado no fim do arquivo porque o comando FFmpeg final em `compose_video()` não inclui `-movflags +faststart`. Sem essa flag, players progressivos (VS Code, WhatsApp, Google Drive preview) não conseguem parsear o container em streaming, causando os sintomas: VS Code sem áudio, erro ao compartilhar. O VLC funciona porque faz seek reverso para encontrar o `moov`, mas é o único caso. A correção é cirúrgica: inserir `"-movflags", "+faststart"` na lista `cmd` em `compositor.py`, antes do path de saída. Nenhum outro arquivo deve ser tocado.
-- **acceptance:**
-  - `ffprobe -v quiet -print_format json -show_format render/final.mp4` mostra que o `moov atom` está no início (campo `format_tags` não contém erros de container).
-  - O arquivo pode ser reproduzido no VS Code sem seek e sem erro de áudio ausente.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-029: Forçar `-ar 44100 -ac 2` em `normalize_audio()` para garantir master em 44100 Hz estéreo
-- **id:** T-029
-- **status:** true
-- **depends_on:** [T-028]
-- **read_first:** ["app/adapters/ffmpeg_adapter.py", "app/modules/timeline_builder.py", "docs/specs/MODULE_TTS_SPEC.md"]
-- **description:** A função `normalize_audio()` em `ffmpeg_adapter.py` aplica `loudnorm` mas não força sample rate nem canais. O ElevenLabs TTS produz WAV a 22050 Hz mono. O `master_audio.wav` chega ao compositor a 22050 Hz mono e o resampling on-the-fly no compositor (flags `-ar 44100 -ac 2` já presentes) pode produzir PTS desalinhados com o stream de vídeo. A correção é adicionar `-ar 44100 -ac 2` ao comando FFmpeg dentro de `normalize_audio()`, antes do path de saída temporária. Isso garante que o `master_audio.wav` já está a 44100 Hz estéreo antes de entrar no compositor, tornando o resampling on-the-fly desnecessário. A task do `concat_audio()` (SEV-005) é coberta por esta mesma mudança: com `normalize_audio` forçando 44100 Hz, o mismatch de sample rate no concat não produz mais master incorreto.
-- **acceptance:**
-  - `ffprobe -show_entries stream=sample_rate,channels output/jobs/<job>/audio/master/master_audio.wav` mostra `sample_rate=44100` e `channels=2` após execução do pipeline.
-  - `ffmpeg -i master_audio.wav -af volumedetect -f null /dev/null` reporta `max_volume >= -3 dB`.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-030: Remover áudio embutido dos clips em `StaticImageLipSync` — usar `-t <duration> -an`
-- **id:** T-030
-- **status:** true
-- **depends_on:** [T-029]
-- **read_first:** ["app/adapters/static_lipsync_adapter.py", "app/adapters/lipsync_engine_adapter.py", "app/modules/lipsync.py", "docs/specs/MODULE_LIPSYNC_SPEC.md"]
-- **description:** O `StaticImageLipSync.generate()` embute faixa de áudio AAC nos clips via `-c:a aac -b:a 192k` e usa `-shortest` para sincronizar. Isso viola o contrato da `LipSyncEngine` ABC que proíbe áudio autoritativo nos clips (o compositor usa o `master_audio.wav`). O problema prático: os PTS do stream de vídeo do clip são calculados em relação ao áudio interno do clip; quando o compositor usa `-itsoffset` para posicionar o clip e descarta o áudio, os PTS podem não alinhar com o master, produzindo frames pretos nos intervalos. A correção: substituir `-c:a aac -b:a 192k -shortest` por `-t <duration> -an`, onde `<duration>` é medida com `get_audio_duration(audio_path)` antes de chamar o FFmpeg. Adicionar o import necessário em `static_lipsync_adapter.py`. A função `generate_lipsync()` em `lipsync.py` chama `get_audio_duration(clip_path)` para validar duração do clip — como o clip deixa de ter stream de áudio, a validação de duração deve usar `get_media_duration(clip_path)` em vez de `get_audio_duration(clip_path)`.
-- **acceptance:**
-  - `ffprobe -show_entries stream=codec_type <clip>.mp4` não mostra stream de áudio nos clips gerados.
-  - A duração do clip está dentro de 0.10s da duração do áudio fonte correspondente.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-031: Adicionar `setsar=1` em `scale_and_trim_video()` para corrigir SAR do background em disco
-- **id:** T-031
-- **status:** true
-- **depends_on:** [T-030]
-- **read_first:** ["app/adapters/ffmpeg_adapter.py", "docs/specs/MODULE_BACKGROUND_SELECTOR_SPEC.md"]
-- **description:** A função `scale_and_trim_video()` em `ffmpeg_adapter.py` usa `scale=W:H:force_original_aspect_ratio=increase,crop=W:H` sem `setsar=1`. Se o vídeo de background de origem tiver SAR diferente de 1:1 (comum em vídeos do YouTube/TikTok), o `prepared_background.mp4` salvo em disco terá SAR incorreto. O compositor aplica `setsar=1` no `filter_complex`, mitigando o impacto no vídeo final — mas o artefato em disco fica com SAR errado, enganando inspeções manuais e o modo `--resume` (que pula `prepare_background` se o arquivo existir, entregando SAR incorreto ao compositor). A correção é acrescentar `,setsar=1` ao `scale_filter` em `scale_and_trim_video()`.
-- **acceptance:**
-  - `ffprobe -show_entries stream=sample_aspect_ratio <prepared_background>.mp4` reporta `1:1`.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-032: Recalcular `master_duration` pós-normalização em `build_timeline()`
-- **id:** T-032
-- **status:** true
-- **depends_on:** [T-031]
-- **read_first:** ["app/modules/timeline_builder.py", "app/adapters/ffmpeg_adapter.py", "docs/specs/MODULE_TIMELINE_BUILDER_SPEC.md"]
-- **description:** Em `build_timeline()`, após a adição de `-ar 44100 -ac 2` em `normalize_audio()` (T-029), o resampling de 22050 Hz para 44100 Hz pode alterar a duração do `master_audio.wav` em mais de 50ms devido ao padding de frames no resampler. A validação `abs(final_end - master_duration) > _DURATION_TOLERANCE_SEC` usa `master_duration` lido após `normalize_audio` (linha 64, depois da linha 57), então a estrutura atual já lê o valor correto pós-normalização. A task consiste em: (1) verificar via execução real se a tolerância de 0.05s é violada após T-029; (2) se for, aumentar `_DURATION_TOLERANCE_SEC` de 0.05 para 0.10 em `timeline_builder.py` e documentar o motivo; (3) adicionar um comentário explícito ao lado da chamada `get_audio_duration(master_path)` indicando que deve ser lido sempre após `normalize_audio` para refletir o arquivo masterizado real.
-- **acceptance:**
-  - Pipeline completo executa sem `TimelineError` de mismatch de duração com o resampling ativo (T-029).
-  - Comentário no código explica por que `master_duration` é lido após `normalize_audio`.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-033: Forçar `format=yuv420p` nos clips do compositor e garantir conversão no `StaticImageLipSync`
-- **id:** T-033
-- **status:** true
-- **depends_on:** [T-032]
-- **read_first:** ["app/adapters/static_lipsync_adapter.py", "app/modules/compositor.py", "docs/specs/MODULE_COMPOSITOR_SPEC.md"]
-- **description:** Se a `base.png` do personagem for RGBA (canal alpha), o FFmpeg pode produzir um clip em formato de pixel diferente de `yuv420p` ou com range full (pc) em vez de limited (tv), gerando artefatos de cor ou recusa do encoder no compositor. O `static_lipsync_adapter.py` já inclui `-pix_fmt yuv420p`, mas não garante conversão explícita do espaço de cor da imagem de entrada. O compositor usa `scale=W:H,setsar=1` mas não adiciona `format=yuv420p` ao filtro de escala de cada clip. A correção é dupla: (1) em `static_lipsync_adapter.py`, adicionar `-vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"` antes de `-c:v libx264` para garantir dimensões pares e conversão de espaço; (2) no `compositor.py`, no filtro de escala de cada clip, alterar `scale={abox['w']}:{abox['h']},setsar=1` para `scale={abox['w']}:{abox['h']},setsar=1,format=yuv420p`.
-- **acceptance:**
-  - `ffprobe -show_entries stream=pix_fmt <clip>.mp4` mostra `yuv420p` em todos os clips gerados.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-034: Corrigir escala do clip no compositor para preservar proporção e evitar distorção do personagem
-- **id:** T-034
-- **status:** true
-- **depends_on:** [T-033]
-- **read_first:** ["app/modules/compositor.py", "docs/specs/MODULE_COMPOSITOR_SPEC.md", "assets/presets/shorts_default.json"]
-- **description:** O `StaticImageLipSync` gera clips com as dimensões da `base.png` de origem, que podem ter proporção diferente da `abox` (active speaker box) definida no preset. O compositor usa `scale={abox['w']}:{abox['h']}` sem `force_original_aspect_ratio`, o que distorce o personagem se as proporções diferirem. Dimensões ímpares na imagem de origem também causam erros de encode no libx264 para `yuv420p`. A correção é substituir o filtro de escala do clip ativo no compositor por `scale={abox['w']}:{abox['h']}:force_original_aspect_ratio=decrease,pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p`. Isso mantém a proporção do personagem, centraliza com padding transparente (preto), força SAR 1:1 e formato yuv420p. O filtro `format=yuv420p` de T-033 já está incluído aqui, então remover o duplicado adicionado em T-033 neste mesmo filtro.
-- **acceptance:**
-  - Personagem no vídeo final não está distorcido horizontalmente ou verticalmente.
-  - `ffprobe -show_entries stream=width,height <clip>.mp4` mostra dimensões pares.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-### T-035: Renomear `get_audio_duration` para `get_media_duration` na validação de clips em `lipsync.py`
-- **id:** T-035
-- **status:** true
-- **depends_on:** [T-034]
-- **read_first:** ["app/modules/lipsync.py", "app/utils/ffprobe_utils.py"]
-- **description:** Em `lipsync.py` linha 68, `get_audio_duration(clip_path)` é chamado para medir a duração de um arquivo MP4 de vídeo. A função delega para `get_media_duration()` internamente, mas o nome `get_audio_duration` é semanticamente incorreto para um arquivo de vídeo e pode mascarar bugs em implementações reais de lipsync onde vídeo e áudio têm durações diferentes. Com T-030, os clips deixam de ter stream de áudio — chamar `get_audio_duration` num arquivo sem stream de áudio pode retornar duração incorreta dependendo da implementação de `ffprobe_utils`. A correção é: (1) verificar a implementação de `get_audio_duration` e `get_media_duration` em `ffprobe_utils.py`; (2) substituir `get_audio_duration(clip_path)` por `get_media_duration(clip_path)` em `lipsync.py`; (3) remover o import de `get_audio_duration` se não for mais usado no módulo.
-- **acceptance:**
-  - `lipsync.py` não importa nem usa `get_audio_duration`.
-  - A validação de duração do clip ainda funciona e rejeita clips com duração fora da tolerância de 0.10s.
-  - `pytest tests/ -q` passa sem regressões.
-
----
-
-## GLOBAL_CHECKS
-
-* Confirm all touched tests pass before marking any task complete.
-* Confirm task dependencies remain acyclic after every edit to this file.
-* Confirm no task introduces scope outside `docs/DESIGN_SPEC.md` and the referenced files in `docs/specs/`.
-* Confirm `PROGRESS.md` was updated with the result of the completed task.
-* Confirm the completed task was recorded in its own commit.
-* Confirm the next loop iteration can choose the next task without reading unrelated files.
+  * Remover apenas os novos testes adicionados se causarem falhas inesperadas
+    nos testes existentes; nunca alterar os testes existentes.

@@ -9,6 +9,25 @@ Detailed bug history: `bugs/`.
 
 ---
 
+## [Hotfix] — 2026-03-16 — Docker File Ownership & TTS Adapter Fix
+
+### Fixed — BUG-002: Output files owned by root, inaccessible to host GUI apps
+
+> Full diagnosis: `bugs/bug-root-owned-output-files-2026-03-16.md`
+
+- `docker-compose.yml`: added `user: "${UID}:${GID}"` so the container runs as the
+  host user. All output files now inherit correct ownership instead of `root:root`.
+  Snap-confined players (mpv, VLC) previously refused to open root-owned files,
+  making valid output appear "corrupted".
+- `app/adapters/elevenlabs_tts_adapter.py`: moved `output_path.parent.mkdir()` to
+  **before** `open()`. Previously the directory creation happened after the file
+  write, which would fail on a fresh directory not pre-created by `init_workspace()`.
+  Also removed orphaned debug print statement.
+
+**Test count:** 233 (no regressions)
+
+---
+
 ## [Milestone 4] — 2026-03-15 — Resume Mode & Output Compatibility
 
 ### Added — T-027: Modo --resume (resume_pipeline)

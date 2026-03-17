@@ -14,7 +14,7 @@ class OpenAIScriptGenerator(ScriptGenerator):
     Requires OPENAI_API_KEY to be set in the environment (via .env).
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-5-mini") -> None:
         if not api_key:
             raise ScriptGenerationError(
                 "OPENAI_API_KEY is not set. Add it to your .env file."
@@ -40,14 +40,56 @@ class OpenAIScriptGenerator(ScriptGenerator):
             ScriptGenerationError: on API error, invalid JSON, or missing keys.
         """
         try:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "script_generation_result",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "title_hook": {
+                                "type": "string",
+                                "description": "Título de gancho para o vídeo, máximo 80 caracteres."
+                            },
+                            "dialogue": {
+                                "type": "array",
+                                "description": "Lista de falas do diálogo, entre 6 e 12 itens, com speakers alternados.",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    "properties": {
+                                        "index": {
+                                            "type": "integer",
+                                            "description": "Posição da fala no diálogo, começa em 1 e incrementa sem gaps."
+                                        },
+                                        "speaker": {
+                                            "type": "string",
+                                            "description": "ID do personagem que fala esta linha, ex: char_a ou char_b."
+                                        },
+                                        "text": {
+                                            "type": "string",
+                                            "description": "Texto falado puro, sem stage directions, emojis ou markdown."
+                                        }
+                                    },
+                                    "required": ["index", "speaker", "text"]
+                                }
+                            }
+                        },
+                        "required": ["title_hook", "dialogue"]
+                    }
+                }
+            }
+            
             response = self._client.chat.completions.create(
                 model=self._model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.8,
-                response_format={"type": "json_object"},
+                reasoning_effort="low",
+                response_format=response_format,
             )
         except Exception as exc:
             raise ScriptGenerationError(f"OpenAI API error: {exc}") from exc

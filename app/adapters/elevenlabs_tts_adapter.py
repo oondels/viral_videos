@@ -47,6 +47,7 @@ class ElevenLabsTTSProvider(TTSProvider):
         Raises:
             TTSError: on API error or file write failure.
         """
+        output_path = Path(output_path)
         try:
             audio = self._client.text_to_speech.convert(
                 voice_id=voice_id,
@@ -56,13 +57,12 @@ class ElevenLabsTTSProvider(TTSProvider):
                 voice_settings=self._voice_settings,
             )
             
-            print(f"Outptut path do audio: {output_path}")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, "wb") as f:
                 for chunk in audio:
                     if chunk:
                         f.write(chunk)
             print(f"{output_path}: A new audio file was saved successfully!")
-            output_path.parent.mkdir(parents=True, exist_ok=True)
 
         except TTSError:
             raise

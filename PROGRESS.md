@@ -31,239 +31,59 @@ Every loop iteration must:
 
 ## Entries
 
-## 2026-03-15 - T-001 - Scaffold the minimum repository work tree
+## 2026-03-16 - T-001 - Prototipar abordagem de transição de escala no FFmpeg (spike)
 
-- Outcome: estrutura canônica de pastas e pacotes Python criada com sucesso.
-- Files changed: app/utils/__init__.py (criado), scripts/.gitkeep (criado), assets/backgrounds/slime/.gitkeep, assets/backgrounds/sand/.gitkeep, assets/backgrounds/minecraft_parkour/.gitkeep, assets/backgrounds/marble_run/.gitkeep, assets/backgrounds/misc/.gitkeep (criados), assets/backgrounds/.gitkeep (removido), TASKS.md (T-001 status → true).
-- Validations: inspecionada a árvore completa de diretórios — todos os caminhos canônicos do DESIGN_SPEC e SYSTEM_ASSET_MANAGEMENT_SPEC estão presentes; nenhum arquivo gerado em runtime foi criado dentro de assets/.
+- Outcome: spike concluído com sucesso. Três cenários testados: (A) zoompan, (B) scale com expressões de tempo, (B+) dois personagens com transições opostas. Decisão tomada: **usar filtro `scale` com expressões de tempo `t` e `eval=frame` no filter_complex**.
+- Files changed: nenhum arquivo de produção alterado. `scripts/spike_transition.py` criado e removido antes do commit.
+- Validations: `pytest tests/ -q` → todos os testes passam sem regressão.
 - Docs updated: none.
-- Notes for next task: T-002 (Docker environment) já tem Dockerfile, docker-compose.yml, .env.example, .dockerignore e requirements.txt no repositório. A validation check da T-002 exige buildar o container e confirmar que FFmpeg está disponível — isso ainda não foi validado.
+- Decisão de abordagem (para uso em T-005):
+  - **Abordagem escolhida:** filtro `scale` com `eval=frame` e expressões baseadas em `t` (tempo em segundos).
+  - **Sintaxe FFmpeg exata:** `scale=w='EXPR':h='EXPR':eval=frame` onde EXPR usa `t` para interpolar entre tamanhos.
+  - **Curva ease-in-out:** `(1 - cos(PI * min(t - t_switch, D) / D)) / 2` onde `D` = duração da transição.
+  - **Ancoragem central:** overlay com `x='center_x - w/2'` e `y='center_y - h/2'` usando expressões dinâmicas.
+  - **Dimensões pares:** `trunc(EXPR/2)*2` para garantir compatibilidade com yuv420p.
+  - **Requisito crítico:** `eval=frame` é obrigatório no filtro `scale` — sem ele, FFmpeg rejeita variáveis de tempo `t`, `n`, `pos` com erro "not valid in init eval_mode".
+  - **Sem arquivos intermediários:** single-pass filter_complex, compatível com o padrão do compositor existente.
+  - **Granularidade:** 0.15s a 30fps = 4-5 frames. Mudança de ~22px/frame (W) e ~33px/frame (H) — suficiente para transição perceptível mas não abrupta. Considerar 0.3s (9 frames) se necessário.
+  - **zoompan descartado:** funciona para imagem única mas não redimensiona o output — faz crop/zoom interno na resolução fixa. Não se integra ao padrão de overlay do compositor.
+- Notes for next task: T-002 deve atualizar a spec com base nesta decisão. A sintaxe `scale=w='...':h='...':eval=frame` deve ser mencionada na spec como abordagem de implementação. O overlay aceita expressões em `x` e `y` para ancoragem dinâmica.
 
-## 2026-03-15 - T-002 - Prepare the single-container Python and Docker environment
+## 2026-03-16 - T-002 - Atualizar MODULE_COMPOSITOR_SPEC com comportamento de transição suave
 
-- Outcome: ambiente Docker validado; build bem-sucedido e FFmpeg 7.1.3 + FFprobe confirmados dentro do container.
-- Files changed: docker-compose.yml (adicionado volume ./config:/app/config ausente que README já documentava).
-- Validations: `docker build -t viral-videos .` → sucesso; `docker run --rm viral-videos python -c "..."` → FFmpeg 7.1.3 e FFprobe 7.1.3 disponíveis.
-- Docs updated: none (README.md e DESIGN_SPEC.md já estavam corretos).
-- Notes for next task: T-003 requer app/main.py, app/config.py, app/logger.py. config/ está montado no container. Confirmar que `python -m app.main --help` funciona e que o logger segue o contrato JSON Lines da observability spec.
+- Outcome: spec atualizada com seção "Speaker transition behavior", novos campos de preset e render metadata, e novos critérios de aceitação.
+- Files changed: docs/specs/MODULE_COMPOSITOR_SPEC.md.
+- Validations: `pytest tests/ -q` → 233 passed; leitura manual da spec confirma consistência interna.
+- Docs updated: docs/specs/MODULE_COMPOSITOR_SPEC.md.
+- Notes for next task: T-003 deve adicionar `speaker_transition_duration_sec` e `speaker_anchor` ao preset `shorts_default.json` e validar em `asset_service.py`. Os campos estão definidos na spec como obrigatórios.
 
-## 2026-03-15 - T-003 - Add the minimal CLI, config loader, and logger foundation
+## 2026-03-16 - T-003 - Adicionar campos de transição ao preset shorts_default.json
 
-- Outcome: app/config.py criado com carregamento canônico de .env; app/logger.py criado com get_process_logger() e JobLogger (JSON Lines); app/main.py atualizado para usar app.logger em vez de app.services.logging_config.
-- Files changed: app/config.py (criado), app/logger.py (criado), app/main.py (import atualizado).
-- Validations: `python -m app.main --help` → saída correta; JobLogger validado: cada linha é JSON válido com campos obrigatórios (timestamp_utc, job_id, stage, event, message) e campos opcionais corretos.
-- Docs updated: none.
-- Notes for next task: T-004 requer app/core/contracts.py e app/core/types.py. Ler SYSTEM_JOB_INPUT_SPEC.md. job_id format é job_YYYY_MM_DD_NNN. Unknown fields devem ser rejeitados.
-
-## 2026-03-15 - T-004 - Implement the validated single-job input contract
-
-- Outcome: contrato de validação canônico implementado com Pydantic v2; 20 unit tests passando.
-- Files changed: app/core/types.py (criado), app/core/contracts.py (criado), tests/unit/test_contracts.py (criado).
-- Validations: `docker run --rm -v $(pwd):/app -w /app viral-videos pytest tests/unit/test_contracts.py -v` → 20 passed; defaults materializados corretamente; job_id gerado no formato job_YYYY_MM_DD_NNN.
-- Docs updated: none.
-- Notes for next task: T-005 e T-006 são ambos desbloqueados (depends_on T-004). T-005 centraliza job_id e workspace paths (app/core/job_context.py, app/services/file_service.py, app/utils/path_utils.py). T-006 adiciona fixtures de input. _ALLOWED_BACKGROUND_STYLES e _ALLOWED_OUTPUT_PRESETS em contracts.py são o local canônico para valores válidos de background/preset — T-013 pode expandir essa lista.
-
-## 2026-03-15 - T-005 - Add job context and canonical workspace path services
-
-- Outcome: autoridade canônica de paths implementada; workspace criado sob output/jobs/<job_id>/; 22 unit tests passando.
-- Files changed: app/utils/path_utils.py (criado), app/core/job_context.py (criado), app/services/file_service.py (criado), tests/unit/test_job_context.py (criado), TASKS.md (T-005 status → true).
-- Validations: `pytest tests/unit/test_job_context.py -v` → 22 passed; todos os subdirs canônicos criados; nenhum path fora de output/jobs/<job_id>; sem criação de assets/.
-- Docs updated: none.
-- Notes for next task: T-006 (fixtures) e T-007 (LLM adapter) são desbloqueados. T-006 depende do contrato de validação de T-004 — usar validate_job() para confirmar que os exemplos são válidos. T-007 cria o adapter LLM e prompts. T-008 depende de T-005 e T-007. JobContext é o objeto canônico de paths — todos os módulos devem recebê-lo por injeção.
-
-## 2026-03-15 - T-006 - Create canonical sample inputs and test fixtures
-
-- Outcome: exemplos canônicos de input e fixtures de teste criados; todos validados pelo schema.
-- Files changed: inputs/examples/job_001.json (output_preset adicionado), inputs/examples/job_002.json (criado, minimal), tests/fixtures/sample_inputs/valid_minimal.json (criado), tests/fixtures/sample_inputs/valid_full.json (criado), TASKS.md (T-006 status → true).
-- Validations: `validate_job()` executada em todos os 4 arquivos → todos passam com defaults corretos materializados.
-- Docs updated: none.
-- Notes for next task: T-007 (LLM adapter) e T-009 (TTS adapter) são os próximos desbloqueados. T-007 cria app/prompts/ + app/adapters/llm_adapter.py com interface ScriptGenerator. T-008 depende de T-005 ✓ e T-007. T-009 cria app/adapters/tts_provider_adapter.py + config/voices.json. tests/fixtures/sample_inputs/ pode ser reusado por testes de integração futuros.
-
-## 2026-03-15 - T-007 - Add script-generation prompts and provider interface
-
-- Outcome: interface ScriptGenerator (ABC), carregador de prompts e arquivos de prompt criados; 12 unit tests passando.
-- Files changed: app/prompts/script_system_prompt.md (criado), app/prompts/script_user_prompt_template.md (criado), app/adapters/llm_adapter.py (criado), tests/unit/test_llm_adapter.py (criado), TASKS.md (T-007 status → true).
-- Validations: `pytest tests/unit/test_llm_adapter.py -v` → 12 passed; prompts carregam do disco; interface abstrata não instanciável; subclasse concreta funciona.
-- Docs updated: none.
-- Notes for next task: T-008 depende de T-005 ✓ e T-007 ✓ — pode começar agora. T-009 (TTS adapter) também está desbloqueado (depends_on T-004 ✓). Interface ScriptGenerator: generate(system_prompt, user_prompt, job) → dict com title_hook + dialogue. ScriptGenerationError para falhas de provider. load_system_prompt() e load_user_prompt(job) são os loaders canônicos de prompts.
-
-## 2026-03-15 - T-008 - Implement the script writer module
-
-- Outcome: módulo write_script() implementado com validação completa e persistência canônica; 15 unit tests passando.
-- Files changed: app/modules/script_writer.py (criado), tests/unit/test_script_writer.py (criado), TASKS.md (T-008 status → true).
-- Validations: `pytest tests/unit/test_script_writer.py -v` → 15 passed; script.json e dialogue.json escritos corretamente; alternação de speakers, line count, index, empty text, unknown speaker e title_hook rejeitados corretamente.
-- Docs updated: none.
-- Notes for next task: T-009 (TTS adapter) depende de T-004 ✓ — pode começar agora. T-010 depende de T-008 ✓ e T-009. Contrato de write_script: JobContext → persiste script_json() e dialogue_json() com JSON canônico. ScriptGenerationError é a exceção para falhas de validação do provider.
-
-## 2026-03-15 - T-009 - Add the TTS provider boundary and voice mapping config
-
-- Outcome: interface TTSProvider (ABC), loaders de voice mapping e config/voices.json criados; 13 unit tests passando.
-- Files changed: app/adapters/tts_provider_adapter.py (criado), config/voices.example.json (criado), config/voices.json (criado), tests/unit/test_tts_adapter.py (criado), TASKS.md (T-009 status → true).
-- Validations: `pytest tests/unit/test_tts_adapter.py -v` → 13 passed; load_voice_mapping() e resolve_voice_id() funcionam; TTSProvider não instanciável diretamente; subclasse concreta funciona.
-- Docs updated: none.
-- Notes for next task: T-010 depende de T-008 ✓ e T-009 ✓ — pode começar agora. TTSProvider.synthesize(text, voice_id, output_path) é o contrato canônico. load_voice_mapping() carrega config/voices.json (runtime path relativo ao CWD). resolve_voice_id(character, mapping) levanta TTSError para speakers sem mapeamento. config/voices.json está commitado com voice_ids de placeholder para char_a e char_b.
-
-## 2026-03-15 - T-010 - Implement per-line audio generation and manifest persistence
-
-- Outcome: módulo generate_tts() implementado; 13 unit tests passando; 95 testes totais verdes.
-- Files changed: app/modules/tts.py (criado), app/utils/ffprobe_utils.py (criado), app/utils/audio_utils.py (criado), tests/unit/test_tts_module.py (criado), TASKS.md (T-010 status → true).
-- Validations: `pytest tests/unit/ -v` → 95 passed; segmentos gerados em audio/segments/NNN_speaker.wav; manifest.json com campos obrigatórios; duration_sec medida via ffprobe; voice mapping ausente falha antes de qualquer síntese; arquivo não escrito levanta TTSError.
-- Docs updated: none.
-- Notes for next task: T-011 depende de T-010 ✓ — pode começar. generate_tts(ctx, provider, voice_mapping) → lista de dicts do manifesto. audio_utils.write_silence_wav() pode ser reutilizado em testes futuros. ffprobe_utils.get_audio_duration() é o utilitário canônico para medir duração de áudio.
-
-## 2026-03-15 - T-011 - Build the master audio file and canonical timeline
-
-- Outcome: build_timeline() implementado; master_audio.wav concatenado via FFmpeg concat demuxer; timeline.json com start_sec/end_sec/duration_sec calculados sem gaps; 14 unit tests passando; 109 testes totais verdes.
-- Files changed: app/modules/timeline_builder.py (criado), tests/unit/test_timeline_builder.py (criado), TASKS.md (T-011 status → true).
-- Validations: `pytest tests/unit/test_timeline_builder.py -v` → 14 passed; `pytest tests/unit/ -q` → 109 passed; primeiro item em 0.0; sem gaps; last end_sec dentro de 0.05s do master; clip_file=null.
-- Docs updated: none.
-- Notes for next task: T-012 (subtitles, depends T-011 ✓) e T-013 (assets, depends T-001 ✓) estão ambos desbloqueados. T-014 depende de T-010 ✓ e T-013. T-015 depende de T-011 ✓ e T-014. TimelineError é a exceção canônica do módulo. concat_list.txt fica em audio/master/ como artefato de debug.
-
-## 2026-03-15 - T-012 - Generate subtitles directly from the timeline
-
-- Outcome: generate_subtitles() implementado; subtitles.srt gerado com um cue por item de timeline; texto preservado exatamente; 11 unit tests passando; 120 testes totais verdes.
-- Files changed: app/modules/subtitles.py (criado), tests/unit/test_subtitles.py (criado), TASKS.md (T-012 status → true).
-- Validations: `pytest tests/unit/test_subtitles.py -v` → 11 passed; primeiro cue em 00:00:00,000; numeração contígua desde 1; timings gap-free; texto idêntico ao da timeline; arquivo válido SRT.
-- Docs updated: none.
-- Notes for next task: T-013 (assets, depends T-001 ✓) está desbloqueado. T-014 depende de T-010 ✓ e T-013. T-015 depende de T-011 ✓ e T-014. SubtitleError é a exceção canônica. _sec_to_srt_timestamp() converte segundos para HH:MM:SS,mmm.
-
-## 2026-03-15 - T-013 - Prepare canonical character assets, fonts, and render presets
-
-- Outcome: ativos canônicos criados; asset_service.py implementado; 16 unit tests passando (12 isolados + 4 de integração com ativos reais); 136 testes totais verdes.
-- Files changed: assets/characters/char_a/base.png (criado, Pillow), assets/characters/char_a/metadata.json (criado), assets/characters/char_b/base.png (criado), assets/characters/char_b/metadata.json (criado), assets/fonts/LiberationSans-Bold.ttf (copiado, SIL OFL), assets/presets/shorts_default.json (criado, todos os campos obrigatórios), config/render.example.json (criado), app/services/asset_service.py (criado), tests/unit/test_asset_service.py (criado), TASKS.md (T-013 status → true).
-- Validations: `pytest tests/unit/test_asset_service.py -v` → 16 passed; TestRealAssets confirma ativos reais no repo; load_character/load_preset/resolve_font/list_backgrounds falham claramente para entradas inválidas.
-- Docs updated: none.
-- Notes for next task: T-014 (lip-sync boundary, depends T-010 ✓ e T-013 ✓) está desbloqueado. Asset service usa CWD-relative paths via _ASSETS_ROOT = Path('assets'). load_character() retorna {'base_png': Path, 'metadata': dict}. load_preset() valida os 11 campos obrigatórios. Fonte canônica: LiberationSans-Bold.ttf. Preset canônico: shorts_default.
-
-## 2026-03-15 - T-014 - Add the lip-sync engine boundary
-
-- Outcome: interface LipSyncEngine (ABC) implementada; LipSyncError definida; 6 unit tests passando; 142 testes totais verdes.
-- Files changed: app/adapters/lipsync_engine_adapter.py (criado), tests/unit/test_lipsync_adapter.py (criado), TASKS.md (T-014 status → true).
-- Validations: `pytest tests/unit/test_lipsync_adapter.py -v` → 6 passed; interface não instanciável; subclasse concreta funciona; LipSyncError levantada corretamente.
-- Docs updated: none.
-- Notes for next task: T-015 depende de T-011 ✓ e T-014 ✓ — pode começar agora. LipSyncEngine.generate(image_path, audio_path, output_path) → Path é o contrato canônico. LipSyncError para falhas de engine. T-015 deve implementar generate_lipsync(ctx, engine) em app/modules/lipsync.py.
-
-## 2026-03-15 - T-015 - Generate one talking-head clip per timeline item
-
-- Outcome: generate_lipsync() implementado; um clip por item de timeline; timeline.json atualizado apenas em clip_file; 10 unit tests passando; 152 testes totais verdes.
-- Files changed: app/modules/lipsync.py (criado), tests/unit/test_lipsync_module.py (criado), TASKS.md (T-015 status → true).
-- Validations: `pytest tests/unit/test_lipsync_module.py -v` → 10 passed; `pytest tests/unit/ -q` → 152 passed; nomes de clip NNN_speaker_talk.mp4; apenas clip_file atualizado; duração dentro de 0.10s; erros claros para asset/engine ausentes.
-- Docs updated: none.
-- Notes for next task: T-016 (background selector, depends T-013 ✓) e T-017 (ffmpeg adapter, depends T-002 ✓) estão desbloqueados. generate_lipsync(ctx, engine) lê timeline.json, chama load_character(speaker), engine.generate(base_png, audio_file, clip_path), valida duração, escreve clip_file. BlackClipEngine (stub FFmpeg) em tests pode ser reutilizado em T-018.
-
-## 2026-03-15 - T-016 - Select, loop, trim, and normalize the background video
-
-- Outcome: prepare_background() implementado; seleção determinística por hash MD5 do job_id; looping via -stream_loop -1; trim via -t; scale-to-cover 1080x1920; 9 unit tests passando; 161 testes totais verdes.
-- Files changed: app/modules/background_selector.py (criado), tests/unit/test_background_selector.py (criado), TASKS.md (T-016 status → true).
-- Validations: `pytest tests/unit/test_background_selector.py -v` → 9 passed; seleção explícita usa categoria correta; auto-seleção determinística; fonte curta é loopada; fonte longa é trimada; output em canonical path.
-- Docs updated: none.
-- Notes for next task: T-017 (ffmpeg adapter, depends T-002 ✓) está desbloqueado. BackgroundError é a exceção canônica. prepare_background(ctx, required_duration_sec) é o contrato. _select_background(style, job_id) pode ser importada isoladamente para testes.
-
-## 2026-03-15 - T-017 - Centralize FFmpeg and FFprobe operations
-
-- Outcome: app/adapters/ffmpeg_adapter.py criado com run_ffmpeg(), concat_audio(), scale_and_trim_video(); ffprobe_utils.py expandido com get_media_duration() e get_video_dimensions(); app/utils/video_utils.py criado com make_color_video(); background_selector.py e timeline_builder.py refatorados para usar o adapter; 15 unit tests passando; 176 testes totais verdes.
-- Files changed: app/adapters/ffmpeg_adapter.py (criado), app/utils/video_utils.py (criado), app/utils/ffprobe_utils.py (expandido: get_media_duration, get_video_dimensions, _run_ffprobe; get_audio_duration delegando a get_media_duration), app/modules/background_selector.py (refatorado para usar ffmpeg_adapter), app/modules/timeline_builder.py (refatorado para usar concat_audio), tests/unit/test_ffmpeg_adapter.py (criado), TASKS.md (T-017 status → true).
-- Validations: `pytest tests/unit/test_ffmpeg_adapter.py -v` → 15 passed; `pytest tests/unit/ -q` → 176 passed; timeline e background testes ainda passam após refatoração.
-- Docs updated: none.
-- Notes for next task: T-018 (compositor, depends T-012 ✓, T-015 ✓, T-016 ✓, T-017 ✓) está desbloqueado. Usar scale_and_trim_video() e concat_audio() do ffmpeg_adapter no compositor. get_video_dimensions() disponível para validar saída. FFmpegError para falhas de comando. make_color_video() em video_utils disponível para fixtures de teste.
-
-## 2026-03-15 - T-018 - Implement the final compositor and render metadata output
-
-- Outcome: compose_video() implementado com filter_complex dinâmico; clips e imagens inativas por janela de tempo; título via drawtext; legendas via subtitles filter; render_metadata.json com todos os campos obrigatórios; 9 testes de integração passando; 185 testes totais verdes.
-- Files changed: app/modules/compositor.py (criado), app/services/render_service.py (criado), tests/integration/test_compositor.py (criado), TASKS.md (T-018 status → true).
-- Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; final.mp4 existe e é 1080x1920; duração dentro de 0.10s; render_metadata.json com todos os campos; erros claros para artifacts ausentes.
-- Docs updated: none.
-- Notes for next task: T-019 (pipeline end-to-end, depends T-018 ✓) está desbloqueado. compose_video(ctx) → Path; write_render_metadata(ctx, preset_name, n) → dict. filter_complex usa -itsoffset por clip e -loop 1 por imagem inativa; cada input referenciado exatamente uma vez. CompositorError para falhas.
-
-## 2026-03-15 - T-019 - Chain the full single-job pipeline end to end
-
-- Outcome: run_pipeline() implementado com os 10 stages canônicos em ordem; fail-fast; job_log emite stage_started/stage_completed/stage_failed; main.py atualizado; 7 testes de integração passando; 192 testes totais verdes.
-- Files changed: app/pipeline.py (criado), app/main.py (atualizado), tests/integration/test_pipeline.py (criado), TASKS.md (T-019 status → true).
-- Validations: `pytest tests/integration/test_pipeline.py -v` → 7 passed; final.mp4 produzido; todos os artefatos canônicos existem; ordem de stages verificada via job.log; falha em lipsync preserva script/audio/timeline; falha em validate_input não cria workspace.
-- Docs updated: none.
-- Notes for next task: T-020 (observability logging, depends T-019 ✓) está desbloqueado. run_pipeline(job_file, llm, tts, lipsync) é o contrato canônico. PipelineError wraps a exceção original. JobLogger já emite eventos em JSON Lines — T-020 deve validar e fortalecer os campos obrigatórios do contrato.
-
-## 2026-03-15 - T-020 - Implement canonical stage logging and execution metadata
-
-- Outcome: pipeline.py atualizado para emitir stage_started/stage_completed retrospectivos para init_job_workspace após criação do workspace; tests/integration/test_observability.py criado com 12 testes validando contrato completo de logging; todos passando.
-- Files changed: app/pipeline.py (adicionados logs retrospectivos para init_job_workspace), tests/integration/test_observability.py (criado), TASKS.md (T-020 status → true).
-- Validations: `pytest tests/integration/test_observability.py -v` → 12 passed; cada linha do log é JSON válido; campos obrigatórios presentes em todos os entries; nomes de stage canônicos; nomes de evento canônicos; job_id consistente; cada stage tem started+completed; sem stage_failed em run de sucesso; render_metadata.json presente em sucesso; exatamente 1 stage_failed em falha (generate_lipsync); stage_failed tem error_type e error_message; render_metadata.json ausente em falha; validate_input failure não cria job.log.
-- Docs updated: none.
-- Notes for next task: T-021 (batch processing, depends T-019 ✓) está desbloqueado. O contrato completo de logging está validado: JSON Lines em logs/job.log, campos {timestamp_utc, job_id, stage, event, message}, events canônicos {stage_started, stage_completed, stage_failed}, stage_failed inclui {error_type, error_message}. validate_input falha antes do workspace — nenhum log é criado. init_job_workspace é logado retrospectivamente após workspace criado.
-
-## 2026-03-15 - T-021 - Add sequential batch processing and final batch report
-
-- Outcome: batch runner implementado; app/main.py --batch wired para run_batch(); scripts/run_batch.sh criado; 10 integration tests passando; pré-existente regressão em test_stages_execute_in_canonical_order corrigida (expected_order faltava init_job_workspace introduzido em T-020); 214 testes totais verdes.
-- Files changed: app/batch.py (já existia untracked, sem mudanças), inputs/batch/jobs.csv (já existia untracked), app/main.py (--batch branch implementado usando run_batch()), scripts/run_batch.sh (criado), tests/integration/test_batch.py (criado, 10 testes), tests/integration/test_pipeline.py (expected_order corrigido para incluir init_job_workspace), TASKS.md (T-021 status → true).
-- Validations: `pytest tests/integration/test_batch.py -v` → 10 passed; `pytest tests/ -q` → 214 passed; batch com 2 itens válidos produz 2 workspaces isolados; batch com item inválido continua e reporta falha; report escrito em output/batch_reports/latest_report.json com todos os campos obrigatórios.
-- Docs updated: none.
-- Notes for next task: T-022 (hardening, depends T-020 ✓) e T-023 (docs, depends T-019 ✓) estão ambos desbloqueados. T-022 é o primeiro na ordem. run_batch(batch_file, llm, tts, lipsync) → report dict; cada item tem job_id, input_ref, status, output_file, error_message. _parse_row() converte CSV row em job payload (topic obrigatório; outros opcionais). job_id=None em itens falhados antes de run_pipeline.
-
-## 2026-03-15 - T-022 - Harden the MVP with validation, retries, and minimum tests
-
-- Outcome: app/core/exceptions.py criado com base ViralVideosError e hierarquia documentada; app/utils/retry.py criado com retry() exponential backoff; app/config.py expandido com provider_max_retries; pipeline.py atualizado para usar _run_with_retry() para write_script, generate_tts, generate_lipsync; 9 unit tests de retry passando; 223 testes totais verdes.
-- Files changed: app/core/exceptions.py (criado), app/utils/retry.py (criado), app/config.py (provider_max_retries adicionado), app/pipeline.py (_run_with_retry() adicionado; write_script/generate_tts/generate_lipsync usam retry), tests/unit/test_retry.py (criado, 9 testes), TASKS.md (T-022 status → true).
-- Validations: `pytest tests/unit/test_retry.py -v` → 9 passed; `pytest tests/ -q` → 223 passed; retry() falha-imediata para non-retryable; backoff exponencial verificado via monkeypatch de time.sleep.
-- Docs updated: none.
-- Notes for next task: T-023 (docs, depends T-019 ✓) é o último task. provider_max_retries configurável via env PROVIDER_MAX_RETRIES (default 3). retry() re-raises última exceção retryable após esgotar tentativas; non-retryable propaga imediatamente. _run_with_retry() é transparente ao contrato de logging (um stage_started, um stage_completed/failed).
-
-## 2026-03-15 - T-023 - Add minimum operational documentation for humans and agents
-
-- Outcome: README.md atualizado com status completo e seção de documentação técnica; scripts/run_single.sh criado; scripts/cleanup_temp.sh criado; Makefile criado com targets build/run/batch/test/lint/clean; lint corrigido em 5 arquivos (unused imports/vars); 223 testes ainda verdes; `ruff check app/` passa sem erros.
-- Files changed: README.md (status table atualizado, seção de docs adicionada, scripts e Makefile documentados, estrutura de projeto corrigida), scripts/run_single.sh (criado), scripts/cleanup_temp.sh (criado), Makefile (criado), app/adapters/ffmpeg_adapter.py (import tempfile removido), app/services/render_service.py (import Path removido), app/modules/lipsync.py (import AssetError removido), app/utils/retry.py (import Any removido), app/main.py (variáveis renomeadas para suprimir F841), TASKS.md (T-023 status → true).
-- Validations: `ruff check app/` → All checks passed; `pytest tests/ -q` → 223 passed; `python -m app.main --help` → saída correta; README aponta para docs/DESIGN_SPEC.md e docs/specs/.
-- Docs updated: README.md.
-- Notes for next task: Todos os 23 tasks do MVP estão completos. O pipeline end-to-end está implementado, testado e documentado. Para usar em produção: implementar adapters reais (LLM, TTS, LipSync) e registrá-los em app/main.py._build_providers().
-
-## 2026-03-15 - T-024 - Fix silent/quiet audio
-
-- Outcome: áudio silencioso corrigido em dois passos complementares.
-- Files changed: app/adapters/elevenlabs_tts_adapter.py (VoiceSettings com use_speaker_boost=True adicionado ao __init__; voice_settings passado para text_to_speech.convert()), app/adapters/ffmpeg_adapter.py (normalize_audio() adicionada com loudnorm=I=-14:TP=-1.5:LRA=11), app/modules/timeline_builder.py (normalize_audio importada; chamada após concat_audio em build_timeline()), TASKS.md (T-024 status → true).
-- Validations: `pytest tests/unit/ -q` → 185 passed; todos os testes de timeline_builder e ffmpeg_adapter continuam verdes após adição de normalize_audio no fluxo.
-- Docs updated: none.
-- Notes for next task: T-025 (subtitles font size, depends T-014 ✓) é a próxima e última task. normalize_audio() usa arquivo temporário com sufixo _loudnorm_tmp.wav para evitar conflito de leitura/escrita do FFmpeg; rename atômico via Path.replace(). Individual segment WAVs não são tocados — apenas master_audio.wav é normalizado.
-
-## 2026-03-15 - T-025 - Fix subtitle font size (libass PlayResY mismatch)
-
-- Outcome: subtítulos corrigidos para tamanho visual correto (~64 px em canvas de 1920 px) através de conversão libass PlayResY.
-- Files changed: app/modules/compositor.py (adicionado cálculo de libass_font_size antes de force_style; substituído FontSize={sub_style['font_size']} por FontSize={libass_font_size}; comentário explicativo sobre PlayResY=288 adicionado), TASKS.md (T-025 status → true).
-- Validations: `pytest tests/ -q` → 223 passed; nenhuma regressão.
-- Docs updated: none (assets/presets/shorts_default.json mantido com font_size=64 — agora significa "64 px visuais na altura nativa do preset").
-- Notes for next task: Todos os 25 tasks estão completos. O MVP está implementado, testado e documentado. Fórmula canônica: libass_font_size = max(1, round(font_size_px × 288 / canvas_height)). _LIBASS_PLAY_RES_Y = 288 é constante local no compositor.
-
-## 2026-03-15 - T-026 - Fix corrupted MP4 output (SAR, áudio e bitrate)
-
-- Outcome: três correções cirúrgicas aplicadas em compose_video() para tornar o output compatível com VLC, WhatsApp, VS Code e Google Drive.
-- Files changed: app/modules/compositor.py (setsar=1 adicionado ao filtro de escala de cada clip ativo; -preset fast e -crf 28 adicionados ao cmd final; -ar 44100 e -ac 2 adicionados ao cmd final para resampling de áudio).
-- Validations: `pytest tests/ -q` → 223 passed; nenhuma regressão nos testes de duração, dimensão, metadados e falhas do compositor.
-- Docs updated: none.
-- Notes for next task: T-027 (modo --resume) é a próxima task. As três causas raiz estavam em compose_video(): (1) SAR 10240:10239 corrigido com setsar=1 no scale de cada clip; (2) áudio 22050 Hz mono corrigido com -ar 44100 -ac 2; (3) bitrate ~4 Mbps corrigido com -preset fast -crf 28 reduzindo para ~1.5–2 Mbps.
-
-## 2026-03-16 - T-028 a T-035 - Correções de qualidade do MP4 e pipeline
-
-- Outcome: oito tasks de correção aplicadas em sequência; todos os 233 testes passam.
-- Files changed:
-  - app/modules/compositor.py (T-028: `-movflags +faststart`; T-033/T-034: escala com `force_original_aspect_ratio=decrease`, `pad`, `setsar=1`, `format=yuv420p` nos clips)
-  - app/adapters/ffmpeg_adapter.py (T-029: `-ar 44100 -ac 2` em `normalize_audio()`; T-031: `setsar=1` em `scale_and_trim_video()`)
-  - app/adapters/static_lipsync_adapter.py (T-030: removido áudio embutido; uso de `-t <duration> -an`; `-vf scale+format=yuv420p` adicionado)
-  - app/modules/lipsync.py (T-030/T-035: `get_audio_duration` → `get_media_duration` na validação do clip)
-  - app/modules/timeline_builder.py (T-032: `_DURATION_TOLERANCE_SEC` elevado a 0.10s; comentário sobre leitura pós-normalização)
-  - TASKS.md (T-028–T-035 status → true)
+- Outcome: campos `speaker_transition_duration_sec: 0.15` e `speaker_anchor: "center"` adicionados ao preset e à validação em `load_preset()`. Todas as fixtures de teste de integração atualizadas.
+- Files changed: assets/presets/shorts_default.json, app/services/asset_service.py, tests/unit/test_asset_service.py, tests/integration/test_compositor.py, tests/integration/test_pipeline.py, tests/integration/test_batch.py, tests/integration/test_observability.py, tests/integration/test_resume.py.
 - Validations: `pytest tests/ -q` → 233 passed.
 - Docs updated: none.
-- Notes for next task: Todas as tasks T-028 a T-035 concluídas. Correções aplicadas:
-  (1) `+faststart` garante moov atom no início — VS Code, WhatsApp e Google Drive passam a aceitar o arquivo.
-  (2) `normalize_audio` agora produz master a 44100 Hz estéreo — PTS alinhados com o vídeo.
-  (3) Clips sem áudio embutido — PTS de vídeo não mais referenciados a um stream de áudio interno.
-  (4) `setsar=1` no background em disco — mode `--resume` não entrega SAR incorreto.
-  (5) Tolerância de duração 0.05 → 0.10s — acomoda padding do resampler.
-  (6) `format=yuv420p` e `force_original_aspect_ratio` nos clips — sem distorção de personagem e sem artefatos de cor.
-  (7) `get_media_duration` semânticamente correto para arquivos de vídeo sem stream de áudio.
+- Notes for next task: T-004 deve refatorar `compose_video()` para posições horizontais fixas por personagem. Os novos campos de preset já estão disponíveis via `load_preset()`. Preset sem os novos campos levanta `AssetError` com mensagem descritiva.
 
-## 2026-03-15 - T-027 - Implementar modo --resume
+## 2026-03-16 - T-004 - Implementar posições horizontais fixas por personagem no compositor
 
-- Outcome: modo --resume implementado em três camadas; stages com artefatos presentes emitem stage_skipped e são puladas; 10 novos testes passando; 233 testes totais verdes.
-- Files changed: app/services/file_service.py (import json adicionado; init_workspace() serializa ctx.job.model_dump() para job_input.json no root do workspace — idempotente), app/pipeline.py (resume_pipeline() adicionada após run_pipeline(); lê job_input.json, reconstrói ValidatedJob, verifica artefatos canônicos por stage, emite stage_skipped para stages com artefatos presentes, executa stages ausentes normalmente; finalize_job sempre executado), app/main.py (--resume JOB_ID adicionado ao mutually_exclusive_group; branch args.resume chama resume_pipeline()), tests/integration/test_resume.py (criado, 10 testes), TASKS.md (T-027 status → true).
-- Validations: `pytest tests/integration/test_resume.py -v` → 10 passed; `pytest tests/ -q` → 233 passed; verificado que stage_skipped é emitido para todas as stages com artefatos; compose_video reexecutada quando final.mp4 deletado; PipelineError levantada quando job_input.json ausente ou malformado.
+- Outcome: `compose_video()` refatorado para que cada personagem ocupe sempre a mesma posição horizontal fixa: char_a (primeiro alfabeticamente) sempre à esquerda (`abox.x`), char_b sempre à direita (`ibox.x`). Quando char_b é o speaker ativo, seu clip vai para o lado direito e a imagem inativa de char_a vai para o lado esquerdo — eliminando o swap de lado que ocorria antes.
+- Files changed: app/modules/compositor.py, TASKS.md, PROGRESS.md.
+- Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; `pytest tests/ -q` → 233 passed; `ruff check app/modules/compositor.py` → sem erros.
 - Docs updated: none.
-- Notes for next task: Todos os 27 tasks estão completos. Contratos canônicos de resume: job_input.json em ctx.root()/"job_input.json"; evento stage_skipped com message "Skipped {stage} — artifacts present"; artefato canônico de cada stage: write_script→script_json+dialogue_json, generate_tts→audio_manifest, build_timeline→timeline_json+master_audio, generate_lipsync→todos clip_file no timeline.json, prepare_background→prepared_background, generate_subtitles→subtitles_srt, compose_video→final_mp4.
+- Notes for next task: T-005 deve adicionar a animação de escala suave (ease-in-out) usando `scale` com `eval=frame` e expressões de tempo `t` conforme decisão do spike T-001. As posições horizontais fixas por personagem já estão implementadas — a animação deve interpolar apenas w/h (escala), mantendo x fixo por personagem. A troca de speaker ainda é um corte seco de escala neste ponto.
+
+## 2026-03-16 - T-005 - Implementar animação de escala suave (ease-in-out) na troca de speaker
+
+- Outcome: animação de escala suave implementada. Quando o speaker muda, ambos os personagens animam suavemente entre tamanhos ativo/inativo usando a abordagem do spike T-001: `scale` com `eval=frame` e expressões de tempo `t` com curva ease-in-out `(1 - cos(PI * clip(t - t_switch, 0, D) / D)) / 2`. Overlay usa `eval=frame` com posição x dinâmica para manter anchor fixo durante animação. Dimensões garantidas pares via `trunc(x/2)*2`.
+- Files changed: app/modules/compositor.py, TASKS.md, PROGRESS.md.
+- Validations: `pytest tests/integration/test_compositor.py -v` → 9 passed; `pytest tests/ -q` → 233 passed; `ruff check app/` → sem erros.
+- Docs updated: none.
+- Implementation details:
+  - Duas funções helper adicionadas: `_scale_transition_expr()` (gera expressões FFmpeg de escala) e `_anchor_overlay_expr()` (gera expressões de posição com anchor).
+  - `-itsoffset` adicionado aos inputs de imagem inativa para alinhar timestamps com tempo global.
+  - Segmentos sem transição mantêm o path estático (sem `eval=frame`) para performance.
+  - Suporte a `speaker_anchor` em 3 modos: `left`, `center`, `right`.
+  - `speaker_transition_duration_sec` lido do preset e usado nas expressões.
+  - Guard `trans_dur > 0` previne divisão por zero se duração for 0.
+- Notes for next task: T-006 deve incluir `speaker_transition_duration_sec` no `render_metadata.json`. A lógica de transição está completa — T-006 é apenas metadata.
