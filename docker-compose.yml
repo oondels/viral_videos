@@ -5,6 +5,8 @@ services:
     user: "${UID}:${GID}"
     env_file: .env
     volumes:
+      - ./app:/app/app
+      - ./tests:/app/tests
       - ./inputs:/app/inputs
       - ./output:/app/output
       - ./assets:/app/assets

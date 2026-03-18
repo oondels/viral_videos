@@ -251,6 +251,10 @@ def compose_video(ctx: JobContext) -> Path:
             and active_id != timeline[i - 1]["speaker"]
             and trans_dur > 0
         )
+        # Skip expensive eval=frame when active/inactive boxes have
+        # identical dimensions — the transition expressions would
+        # evaluate to constants every frame for zero visual effect.
+        dims_differ = abox["w"] != ibox["w"] or abox["h"] != ibox["h"]
 
         c_scaled = f"c{i}"
         img_scaled = f"img{i}"
@@ -265,7 +269,7 @@ def compose_video(ctx: JobContext) -> Path:
             clip_anchor_x = char_b_anchor_x
             img_anchor_x = char_a_anchor_x
 
-        if is_transition:
+        if is_transition and dims_differ:
             # Active clip: grows from inactive to active dimensions
             cw, ch = _scale_transition_expr(
                 start, trans_dur,
@@ -273,7 +277,7 @@ def compose_video(ctx: JobContext) -> Path:
             )
             filters.append(
                 f"[{clip_in}:v]scale=w='{cw}':h='{ch}':eval=frame,"
-                f"setsar=1,format=yuv420p[{c_scaled}]"
+                f"setsar=1,format=rgba[{c_scaled}]"
             )
             # Inactive image: shrinks from active to inactive dimensions
             iw, ih = _scale_transition_expr(
@@ -282,7 +286,7 @@ def compose_video(ctx: JobContext) -> Path:
             )
             filters.append(
                 f"[{img_in}:v]scale=w='{iw}':h='{ih}':eval=frame,"
-                f"setsar=1,format=yuv420p[{img_scaled}]"
+                f"setsar=1,format=rgba[{img_scaled}]"
             )
 
             # Dynamic overlay positions to maintain anchor
@@ -310,12 +314,12 @@ def compose_video(ctx: JobContext) -> Path:
             filters.append(
                 f"[{clip_in}:v]scale={abox['w']}:{abox['h']}:"
                 f"force_original_aspect_ratio=decrease,"
-                f"pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2,"
-                f"setsar=1,format=yuv420p[{c_scaled}]"
+                f"pad={abox['w']}:{abox['h']}:(ow-iw)/2:(oh-ih)/2:color=0x00000000,"
+                f"setsar=1,format=rgba[{c_scaled}]"
             )
             filters.append(
                 f"[{img_in}:v]scale={ibox['w']}:{ibox['h']},"
-                f"setsar=1,format=yuv420p[{img_scaled}]"
+                f"setsar=1,format=rgba[{img_scaled}]"
             )
 
             if active_id == char_a_id:
