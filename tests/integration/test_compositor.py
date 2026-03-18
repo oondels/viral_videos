@@ -253,6 +253,64 @@ class TestComposeVideo:
         assert meta["timeline_item_count"] == N_LINES
 
 
+class TestFilterComplexAlpha:
+    """Regression tests for T-043: PNG alpha channel preservation."""
+
+    def test_character_streams_use_rgba_not_yuv420p(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        ctx = _make_ctx(tmp_path)
+        _setup_all_artifacts(tmp_path, ctx)
+
+        captured_cmd: list[list[str]] = []
+
+        def _fake_run_ffmpeg(cmd: list[str], **kwargs: Any) -> None:  # noqa: ARG001
+            captured_cmd.append(list(cmd))
+
+        monkeypatch.setattr(
+            "app.modules.compositor.run_ffmpeg", _fake_run_ffmpeg
+        )
+        # Patch out post-render checks that would fail without real output
+        monkeypatch.setattr(
+            "app.modules.compositor.get_media_duration", lambda _: N_LINES * SEG_DURATION
+        )
+        monkeypatch.setattr(
+            "app.modules.compositor.write_render_metadata",
+            lambda *a, **kw: None,
+        )
+        # Create a dummy final.mp4 so the exists() check passes
+        ctx.render_dir().mkdir(parents=True, exist_ok=True)
+        ctx.final_mp4().write_bytes(b"\x00")
+
+        compose_video(ctx)
+
+        assert captured_cmd, "run_ffmpeg was not called"
+        cmd = captured_cmd[0]
+
+        # Extract filter_complex value
+        fc_idx = cmd.index("-filter_complex")
+        filter_complex = cmd[fc_idx + 1]
+
+        # Identify character filters: those containing 'scale' and outputting
+        # labels like [c0], [c1], [img0], [img1], etc.
+        import re
+        character_filters = []
+        for filt in filter_complex.split(";"):
+            if "scale" in filt and re.search(r"\[(c|img)\d+\]$", filt.strip()):
+                character_filters.append(filt)
+
+        assert character_filters, "No character filters found in filter_complex"
+
+        for filt in character_filters:
+            assert "format=yuv420p" not in filt, (
+                f"Character filter still uses yuv420p: {filt}"
+            )
+
+        rgba_found = any("format=rgba" in f for f in character_filters)
+        assert rgba_found, (
+            "No character filter uses format=rgba"
+        )
+
+
 class TestComposeVideoFailures:
     def test_missing_background_raises(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

@@ -103,7 +103,7 @@ inputs:
 
 * id: T-044
   title: Adicionar acceptance test para verificar ausência de format=yuv420p nos streams dos personagens
-  status: false
+  status: true
   type: code
   depends_on: [T-043]
   read_first:

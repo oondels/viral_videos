@@ -17,3 +17,16 @@
 ### Validation
 - 9/9 integration tests passed.
 - ruff check passed.
+
+## T-044 — Adicionar acceptance test para verificar ausência de format=yuv420p nos streams dos personagens
+**Status:** complete
+**Date:** 2026-03-17
+
+### Changes
+- `tests/integration/test_compositor.py`: Added `TestFilterComplexAlpha` class with `test_character_streams_use_rgba_not_yuv420p` test.
+- Test monkey-patches `run_ffmpeg` to capture the filter_complex without executing FFmpeg.
+- Validates that character stream filters use `format=rgba` and do not contain `format=yuv420p`.
+
+### Validation
+- 10/10 integration tests passed.
+- No new ruff errors introduced (3 pre-existing errors in the file remain).
