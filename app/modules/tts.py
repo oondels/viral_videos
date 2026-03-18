@@ -55,8 +55,6 @@ def generate_tts(
         voice_id: str = voice_ids[speaker]
 
         segment_path = ctx.audio_segment(idx, speaker)
-        print(type(text))
-        print(f"Nova fala: {text} (speaker: {speaker}, voice_id: {voice_id})")
         provider.synthesize(text, voice_id, segment_path)
 
         if not segment_path.exists():
@@ -65,7 +63,6 @@ def generate_tts(
             )
 
         duration = get_audio_duration(segment_path)
-        print(f"Duração do segmento de áudio: {duration} segundos")
         manifest.append(
             {
                 "index": idx,
