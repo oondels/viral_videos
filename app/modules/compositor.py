@@ -19,6 +19,8 @@ class CompositorError(Exception):
     """Raised when video composition fails."""
 
 
+
+
 def _escape_ffmpeg_path(path: Path) -> str:
     """Escape a path for use in FFmpeg filter arguments."""
     return str(path).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
